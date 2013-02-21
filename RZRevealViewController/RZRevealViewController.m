@@ -86,15 +86,17 @@
 {
     self.revealEnabled = YES;
     
-    self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
-    self.revealPanGestureRecognizer.delegate = self;
+    if (nil == self.revealPanGestureRecognizer)
+    {
+        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
+        self.revealPanGestureRecognizer.delegate = self;
+        [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
+    }
     
     self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.85;
     self.peekHiddenOffset = self.view.bounds.size.width * 0.85;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
     self.revealGestureThreshold = CGFLOAT_MAX;
-    
-    [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
 }
 
 #pragma mark - View lifecycle
