@@ -608,9 +608,16 @@
 
 - (RZRevealViewController*)revealViewController
 {
-    if ([self.parentViewController isKindOfClass:[RZRevealViewController class]])
+    if (self.parentViewController)
     {
-        return (RZRevealViewController*)self.parentViewController;
+        if ([self.parentViewController isKindOfClass:[RZRevealViewController class]])
+        {
+            return (RZRevealViewController*)self.parentViewController;
+        }
+        else
+        {
+            return [self.parentViewController revealViewController];
+        }
     }
     
     return nil;
