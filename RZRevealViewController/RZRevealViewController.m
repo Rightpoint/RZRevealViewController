@@ -13,8 +13,7 @@
 
 @property (assign, nonatomic, readwrite, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readwrite, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (strong, nonatomic, readwrite) UIPanGestureRecognizer *leftRevealPanGestureRecognizer;
-@property (strong, nonatomic, readwrite) UIPanGestureRecognizer *rightRevealPanGestureRecognizer;
+@property (strong, nonatomic, readwrite) UIPanGestureRecognizer *revealPanGestureRecognizer;
 
 - (void)setupRevealViewController;
 
@@ -22,8 +21,7 @@
 - (void)peekHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
 - (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated;
 
-- (void)revealLeftPanTriggered:(UIPanGestureRecognizer*)panGR;
-- (void)revealRightPanTriggered:(UIPanGestureRecognizer*)panGR;
+- (void)revealPanTriggered:(UIPanGestureRecognizer*)panGR;
 @end
 
 @implementation RZRevealViewController
@@ -38,8 +36,7 @@
 @synthesize rightHiddenViewControllerRevealed = _rightHiddenViewControllerRevealed;
 @synthesize revealEnabled = _revealEnabled;
 
-@synthesize leftRevealPanGestureRecognizer = _leftRevealPanGestureRecognizer;
-@synthesize rightRevealPanGestureRecognizer = _rightRevealPanGestureRecognizer;
+@synthesize revealPanGestureRecognizer = revealPanGestureRecognizer;
 
 @synthesize quickPeekHiddenOffset = _quickPeekHiddenOffset;
 @synthesize peekHiddenOffset = _peekHiddenOffset;
@@ -52,13 +49,13 @@
         leftHiddenViewController:(UIViewController*)leftVC
        rightHiddenViewController:(UIViewController*)rightVC
 {
-    self = [self initWithNibName:nil bundle:nil];
+    self = [self init];
     if (self) {
-        
+        [self setupRevealViewController];
+
         self.mainViewController = mainVC;
         self.leftHiddenViewController = leftVC;
         self.rightHiddenViewController = rightVC;
-        [self setupRevealViewController];
     }
     return self;
 }
@@ -93,7 +90,14 @@
 - (void)setupRevealViewController
 {
     self.revealEnabled = YES;
-        
+    
+    if (nil == self.revealPanGestureRecognizer)
+    {
+        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
+        self.revealPanGestureRecognizer.delegate = self;
+        [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
+    }
+    
     self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.85;
     self.peekHiddenOffset = self.view.bounds.size.width * 0.85;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
@@ -105,20 +109,13 @@
 {
     [super viewDidLoad];
     
-    if (nil == self.leftRevealPanGestureRecognizer && self.leftHiddenViewController)
+    if (nil == self.revealPanGestureRecognizer && (self.leftHiddenViewController || self.rightHiddenViewController))
     {
-        self.leftRevealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealLeftPanTriggered:)];
-        self.leftRevealPanGestureRecognizer.delegate = self;
-        [self.view addGestureRecognizer:self.leftRevealPanGestureRecognizer];
+        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
+        self.revealPanGestureRecognizer.delegate = self;
+        [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
-    
-    if (nil == self.rightRevealPanGestureRecognizer && self.rightHiddenViewController)
-    {
-        self.rightRevealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealRightPanTriggered:)];
-        self.rightRevealPanGestureRecognizer.delegate = self;
-        [self.view addGestureRecognizer:self.rightRevealPanGestureRecognizer];
-    }
-    
+        
     if (self.mainViewController)
     {
         self.mainViewController.view.frame = self.view.bounds;
@@ -449,17 +446,8 @@
 
 - (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated
 {
-    UIViewController* vcToHide = nil;
-    if (position == RZRevealViewControllerPositionLeft)
-    {
-        vcToHide = self.leftHiddenViewController;
-    }
-    else
-    {
-        vcToHide = self.rightHiddenViewController;
-    }
+    UIViewController* vcToHide = (position == RZRevealViewControllerPositionLeft) ? self.leftHiddenViewController: self.rightHiddenViewController;
 
-    
     if (animated)
     {
         [UIView animateWithDuration:duration
@@ -525,205 +513,205 @@
 }
 
 #pragma mark - UIGestureRecognizer Callbacks
-- (void)revealLeftPanTriggered:(UIPanGestureRecognizer *)panGR
-{
-    [self handleGesture:panGR forPosition:RZRevealViewControllerPositionLeft];
-}
 
-- (void)revealRightPanTriggered:(UIPanGestureRecognizer *)panGR
+- (void)revealPanTriggered:(UIPanGestureRecognizer *)panGR
 {
-    [self handleGesture:panGR forPosition:RZRevealViewControllerPositionRight];
-}
+    static CGPoint initialTouchPoint;
+    static CGPoint lastTouchPoint;
+    static CGPoint currentLocation;
+    static CGFloat initialOffset;
+    
+    static CGFloat currentPeekHiddenOffset;
+    static CGFloat currentQuickPeekHiddenOffset;
+    static CGFloat currentShowHiddenOffset;
+    
+    static NSTimeInterval lastTime;
+    static NSTimeInterval currentTime;
+        
+    CGFloat locationOffset;
+    
+    switch (panGR.state) {
+        case UIGestureRecognizerStateBegan:
+            initialTouchPoint = [panGR locationInView:self.view];
+            currentLocation = initialTouchPoint;
+            lastTouchPoint = initialTouchPoint;
+            lastTime = [NSDate timeIntervalSinceReferenceDate];
+            currentTime = lastTime;
+            initialOffset = self.mainVCWrapperView.transform.tx;
+            
+            currentQuickPeekHiddenOffset = self.quickPeekHiddenOffset;
+            currentPeekHiddenOffset = self.peekHiddenOffset;
+            currentShowHiddenOffset = self.showHiddenOffset;
+            
+            break;
+        case UIGestureRecognizerStateChanged:
+            lastTouchPoint = currentLocation;
+            lastTime = currentTime;
+            currentLocation = [panGR locationInView:self.view];
+            currentTime = [NSDate timeIntervalSinceReferenceDate];
+            locationOffset = round(currentLocation.x - initialTouchPoint.x + initialOffset);
+            
+            // This looks more complex than it needs to be but it's because we can pan to either side,
+            // so we need to know which way the user intends to move before we start moving.
+            if (locationOffset < 0.0)
+            {
+                if (!self.rightHiddenViewController)
+                {
+                    locationOffset = 0.0;
+                }
+                else if (!self.rightHiddenViewControllerRevealed)
+                {
+                    [self peekRightHiddenViewControllerWithOffset:0.0 animated:NO];
+                }
+            } else if (locationOffset > 0.0)
+            {
+                if (!self.leftHiddenViewController)
+                {
+                    locationOffset = 0.0;
+                }
+                else if (!self.leftHiddenViewControllerRevealed)
+                {
+                    [self peekLeftHiddenViewControllerWithOffset:0.0 animated:NO];
+                    return;
+                }
+            }
+            
+            
+            if (locationOffset > currentPeekHiddenOffset)
+            {
+                if (initialOffset > currentPeekHiddenOffset)
+                {
+                    if (locationOffset > initialOffset)
+                    {
+                        locationOffset = initialOffset + ((locationOffset - initialOffset) / 2.0);
+                    }
+                }
+                else
+                {
+                    locationOffset = currentPeekHiddenOffset + ((locationOffset - currentPeekHiddenOffset) / 2.0);
+                }
+            }
+            
+            self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(locationOffset, 0);
+            
+            break;
+        case UIGestureRecognizerStateEnded:
+        case UIGestureRecognizerStateCancelled:
+            currentLocation = [panGR locationInView:self.view];
+            locationOffset = currentLocation.x - initialTouchPoint.x + initialOffset;
+            
+            double velocity = (currentLocation.x - lastTouchPoint.x) / (currentTime - lastTime);
+            double speed = fabs(velocity);
+            RZRevealViewControllerPosition position = locationOffset > 0 ? RZRevealViewControllerPositionLeft : RZRevealViewControllerPositionRight;
 
-
-- (void)handleGesture:(UIPanGestureRecognizer *)panGR forPosition:(RZRevealViewControllerPosition)position
-{
-//    static CGPoint initialTouchPoint;
-//    static CGPoint lastTouchPoint;
-//    static CGPoint currentLocation;
-//    static CGFloat initialOffset;
-//    
-//    static CGFloat currentPeekHiddenOffset;
-//    static CGFloat currentQuickPeekHiddenOffset;
-//    static CGFloat currentShowHiddenOffset;
-//    
-//    static NSTimeInterval lastTime;
-//    static NSTimeInterval currentTime;
-//    
-//    CGFloat locationOffset;
-//    
-//    switch (panGR.state) {
-//        case UIGestureRecognizerStateBegan:
-//            initialTouchPoint = [panGR locationInView:self.view];
-//            currentLocation = initialTouchPoint;
-//            lastTouchPoint = initialTouchPoint;
-//            lastTime = [NSDate timeIntervalSinceReferenceDate];
-//            currentTime = lastTime;
-//            initialOffset = self.mainVCWrapperView.transform.tx;
-//            
-//            currentQuickPeekHiddenOffset = self.quickPeekHiddenOffset;
-//            currentPeekHiddenOffset = self.peekHiddenOffset;
-//            currentShowHiddenOffset = self.showHiddenOffset;
-//            
-//            if (!self.leftHiddenViewControllerRevealed)
-//            {
-//                [self peekLeftHiddenViewControllerWithOffset:0.0 animated:NO];
-//            }
-//            
-//            if (!self.rightHiddenViewControllerRevealed)
-//            {
-//                [self peekRightHiddenViewControllerWithOffset:0.0 animated:NO];
-//            }
-//            
-//            break;
-//        case UIGestureRecognizerStateChanged:
-//            lastTouchPoint = currentLocation;
-//            lastTime = currentTime;
-//            currentLocation = [panGR locationInView:self.view];
-//            currentTime = [NSDate timeIntervalSinceReferenceDate];
-//            locationOffset = round(currentLocation.x - initialTouchPoint.x + initialOffset);
-//            
-//            if (locationOffset < 0.0)
-//            {
-//                locationOffset = 0.0;
-//            }
-//            else if (locationOffset > currentPeekHiddenOffset)
-//            {
-//                if (initialOffset > currentPeekHiddenOffset)
-//                {
-//                    if (locationOffset > initialOffset)
-//                    {
-//                        locationOffset = initialOffset + ((locationOffset - initialOffset) / 2.0);
-//                    }
-//                }
-//                else
-//                {
-//                    locationOffset = currentPeekHiddenOffset + ((locationOffset - currentPeekHiddenOffset) / 2.0);
-//                }
-//            }
-//            
-//            self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(locationOffset, 0);
-//            
-//            break;
-//        case UIGestureRecognizerStateEnded:
-//        case UIGestureRecognizerStateCancelled:
-//            currentLocation = [panGR locationInView:self.view];
-//            locationOffset = currentLocation.x - initialTouchPoint.x + initialOffset;
-//            
-//            CGFloat lastOffset = currentLocation.x - lastTouchPoint.x;
-//            double velocity = (currentLocation.x - lastTouchPoint.x) / (currentTime - lastTime);
-//            double speed = fabs(velocity);
-//            
-//            //            NSLog(@"Last Offset: %f Velocity: %f", lastOffset, velocity);
-//            
-//            if (lastOffset > 0.0 || (locationOffset > initialOffset && lastOffset > -10.0))
-//            {
-//                if (initialOffset >= currentShowHiddenOffset && locationOffset > currentShowHiddenOffset)
-//                {
-//                    CGFloat newDistance = fabs(currentPeekHiddenOffset - locationOffset);
-//                    
-//                    double duration = newDistance / speed;
-//                    
-//                    if (duration < 0.1)
-//                    {
-//                        duration = 0.1;
-//                    }
-//                    else if (duration > 0.25)
-//                    {
-//                        duration = 0.25;
-//                    }
-//                    
-//                    [self showHiddenViewControllerWithOffset:currentShowHiddenOffset duration:duration animated:YES];
-//                }
-//                else if (locationOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
-//                {
-//                    CGFloat newDistance = fabs(currentPeekHiddenOffset - locationOffset);
-//                    
-//                    double duration = newDistance / speed;
-//                    
-//                    if (duration < 0.1)
-//                    {
-//                        duration = 0.1;
-//                    }
-//                    else if (duration > 0.25)
-//                    {
-//                        duration = 0.25;
-//                    }
-//                    
-//                    [self peekHiddenViewControllerWithOffset:currentPeekHiddenOffset duration:duration animated:YES];
-//                }
-//                else if (locationOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
-//                {
-//                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - locationOffset);
-//                    
-//                    double duration = newDistance / speed;
-//                    
-//                    if (duration < 0.1)
-//                    {
-//                        duration = 0.1;
-//                    }
-//                    else if (duration > 0.25)
-//                    {
-//                        duration = 0.25;
-//                    }
-//                    
-//                    [self peekHiddenViewControllerWithOffset:currentQuickPeekHiddenOffset duration:duration animated:YES];
-//                }
-//                else
-//                {
-//                    CGFloat newDistance = fabs(locationOffset);
-//                    
-//                    double duration = newDistance / speed;
-//                    
-//                    if (duration < 0.1)
-//                    {
-//                        duration = 0.1;
-//                    }
-//                    else if (duration > 0.25)
-//                    {
-//                        duration = 0.25;
-//                    }
-//                    
-//                    [self hideHiddenViewControllerWithDuration:duration animated:YES];
-//                }
-//            }
-//            else
-//            {
-//                CGFloat newDistance = fabs(locationOffset);
-//                
-//                double duration = newDistance / speed;
-//                
-//                if (duration < 0.1)
-//                {
-//                    duration = 0.1;
-//                }
-//                else if (duration > 0.25)
-//                {
-//                    duration = 0.25;
-//                }
-//                
-//                [self hideHiddenViewControllerWithDuration:duration animated:YES];
-//            }
-//            
-//            break;
-//        default:
-//            break;
-//    }
+            if (fabs(locationOffset) > fabs(initialOffset))
+            {                
+                if (fabs(locationOffset) > currentShowHiddenOffset)
+                {
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - fabs(locationOffset));
+                    
+                    double duration = newDistance / speed;
+                    
+                    if (duration < 0.1)
+                    {
+                        duration = 0.1;
+                    }
+                    else if (duration > 0.25)
+                    {
+                        duration = 0.25;
+                    }
+                    
+                    [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES];
+                }
+                else if (fabs(locationOffset) > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
+                {
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - fabs(locationOffset));
+                    
+                    double duration = newDistance / speed;
+                    
+                    if (duration < 0.1)
+                    {
+                        duration = 0.1;
+                    }
+                    else if (duration > 0.25)
+                    {
+                        duration = 0.25;
+                    }
+                    
+                    [self peekHiddenViewController:position offset:currentPeekHiddenOffset duration:duration animated:YES];
+                }
+                else if (fabs(locationOffset) > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
+                {
+                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - fabs(locationOffset));
+                    
+                    double duration = newDistance / speed;
+                    
+                    if (duration < 0.1)
+                    {
+                        duration = 0.1;
+                    }
+                    else if (duration > 0.25)
+                    {
+                        duration = 0.25;
+                    }
+                    
+                    [self peekHiddenViewController:position offset:currentQuickPeekHiddenOffset duration:duration animated:YES];
+                }
+                else
+                {
+                    CGFloat newDistance = fabs(locationOffset);
+                    
+                    double duration = newDistance / speed;
+                    
+                    if (duration < 0.1)
+                    {
+                        duration = 0.1;
+                    }
+                    else if (duration > 0.25)
+                    {
+                        duration = 0.25;
+                    }
+                    
+                    [self hideHiddenViewController:position duration:duration animated:YES];
+                }
+            }
+            else
+            {
+                CGFloat newDistance = fabs(locationOffset);
+                
+                double duration = newDistance / speed;
+                
+                if (duration < 0.1)
+                {
+                    duration = 0.1;
+                }
+                else if (duration > 0.25)
+                {
+                    duration = 0.25;
+                }
+                
+                [self hideHiddenViewController:position duration:duration animated:YES];
+            }
+            
+            break;
+        default:
+            break;
+    }
 }
 
 #pragma mark - UIGestureRecgonzierDelegate
 
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
-//    if (gestureRecognizer == self.leftRevealPanGestureRecognizer)
-//    {
-//        CGPoint location = [gestureRecognizer locationInView:self.view];
-//        
-//        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
-//        {
-//            return NO;
-//        }
-//    }
+    if (gestureRecognizer == self.revealPanGestureRecognizer)
+    {
+        CGPoint location = [gestureRecognizer locationInView:self.view];
+        
+        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
+        {
+            return NO;
+        }
+    }
     
     return YES;
 }

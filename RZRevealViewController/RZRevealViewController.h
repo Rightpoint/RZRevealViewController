@@ -11,7 +11,8 @@
 typedef enum
 {
     RZRevealViewControllerPositionLeft,
-    RZRevealViewControllerPositionRight
+    RZRevealViewControllerPositionRight,
+    RZRevealViewControllerPositionNone
 }
 RZRevealViewControllerPosition;
 
@@ -29,8 +30,7 @@ RZRevealViewControllerPosition;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
 @property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled;
 
-@property (strong, nonatomic, readonly) UIPanGestureRecognizer *leftRevealPanGestureRecognizer;
-@property (strong, nonatomic, readonly) UIPanGestureRecognizer *rightRevealPanGestureRecognizer;
+@property (strong, nonatomic, readonly) UIPanGestureRecognizer *revealPanGestureRecognizer;
 
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
