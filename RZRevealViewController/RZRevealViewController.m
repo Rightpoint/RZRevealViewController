@@ -30,7 +30,6 @@
 @synthesize rightHiddenViewController = _rightHiddenViewController;
 
 @synthesize mainVCWrapperView = _mainVCWrapperView;
-@synthesize shadowView = _shadowView;
 
 @synthesize leftHiddenViewControllerRevealed = _leftHiddenViewControllerRevealed;
 @synthesize rightHiddenViewControllerRevealed = _rightHiddenViewControllerRevealed;
@@ -129,12 +128,7 @@
     self.mainVCWrapperView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.mainVCWrapperView setClipsToBounds:NO];
     
-    // TODO: add right shadow
-    UIImage *shadowImage = [UIImage imageNamed:@"shadow-left-edge.png"];
-    CGRect shadowFrame = CGRectMake(-shadowImage.size.width, 0, shadowImage.size.width, self.view.bounds.size.height);
-    self.shadowView = [[UIImageView alloc] initWithFrame:shadowFrame];
-    [self.shadowView setImage:shadowImage];
-    [self.mainVCWrapperView addSubview:self.shadowView];
+    [self addShadow];
 }
 
 
@@ -154,6 +148,15 @@
     
     // Return YES for supported orientations
     return [self.mainViewController shouldAutorotateToInterfaceOrientation:interfaceOrientation];
+}
+
+- (void) addShadow
+{
+    CALayer* wrapperLayer = self.mainVCWrapperView.layer;
+    wrapperLayer.shadowPath = [[UIBezierPath bezierPathWithRect:wrapperLayer.bounds] CGPath];
+    wrapperLayer.shadowRadius = 8.0f;
+    wrapperLayer.shadowOpacity = 0.75f;
+    wrapperLayer.shadowColor = [[UIColor blackColor] CGColor];
 }
 
 #pragma mark - Property Accessors

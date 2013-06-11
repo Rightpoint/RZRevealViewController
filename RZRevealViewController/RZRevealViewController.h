@@ -23,8 +23,8 @@ RZRevealViewControllerPosition;
 @property (strong, nonatomic) IBOutlet UIViewController *mainViewController;
 @property (strong, nonatomic) IBOutlet UIViewController *leftHiddenViewController;
 @property (strong, nonatomic) IBOutlet UIViewController *rightHiddenViewController;
+// Defaults to having a basic shadow, change this view's CALayer shadow properties to adjust.
 @property (strong, nonatomic) UIView *mainVCWrapperView;
-@property (strong, nonatomic) UIImageView *shadowView;
 
 @property (assign, nonatomic, readonly, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
