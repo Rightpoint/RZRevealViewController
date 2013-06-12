@@ -11,46 +11,32 @@
 
 @interface RZRevealViewController ()
 
-@property (assign, nonatomic, readwrite, getter = isHiddenViewControllerRevealed) BOOL hiddenViewControllerRevealed;
+@property (assign, nonatomic, readwrite, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
+@property (assign, nonatomic, readwrite, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
 @property (strong, nonatomic, readwrite) UIPanGestureRecognizer *revealPanGestureRecognizer;
 
 - (void)setupRevealViewController;
 
-- (void)showHiddenViewControllerWithOffset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
-- (void)peekHiddenViewControllerWithOffset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
-- (void)hideHiddenViewControllerWithDuration:(CGFloat)duration animated:(BOOL)animated;
+- (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
+- (void)peekHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
+- (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated;
 
 - (void)revealPanTriggered:(UIPanGestureRecognizer*)panGR;
 @end
 
 @implementation RZRevealViewController
-@synthesize mainViewController = _mainViewController;
-@synthesize hiddenViewController = _hiddenViewController;
 
-@synthesize mainVCWrapperView = _mainVCWrapperView;
-@synthesize shadowView = _shadowView;
-
-@synthesize hiddenViewControllerRevealed = _hiddenViewControllerRevealed;
-@synthesize revealEnabled = _revealEnabled;
-
-@synthesize revealPanGestureRecognizer = _revealPanGestureRecognizer;
-
-@synthesize quickPeekHiddenOffset = _quickPeekHiddenOffset;
-@synthesize peekHiddenOffset = _peekHiddenOffset;
-@synthesize showHiddenOffset = _showHiddenOffset;
-@synthesize revealGestureThreshold = _revealGestureThreshold;
-
-@synthesize delegate = _delegate;
-
-- (id)initWithMainViewController:(UIViewController*)mainVC andHiddenViewController:(UIViewController*)hiddenVC
+- (id)initWithMainViewController:(UIViewController*)mainVC
+        leftHiddenViewController:(UIViewController*)leftVC
+       rightHiddenViewController:(UIViewController*)rightVC
 {
-    self = [self initWithNibName:nil bundle:nil];
+    self = [self init];
     if (self) {
-        
-        self.mainViewController = mainVC;
-        self.hiddenViewController = hiddenVC;
         [self setupRevealViewController];
 
+        self.mainViewController = mainVC;
+        self.leftHiddenViewController = leftVC;
+        self.rightHiddenViewController = rightVC;
     }
     return self;
 }
@@ -104,8 +90,13 @@
 {
     [super viewDidLoad];
     
-    [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
-    
+    if (nil == self.revealPanGestureRecognizer)
+    {
+        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
+        self.revealPanGestureRecognizer.delegate = self;
+        [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
+    }
+        
     if (self.mainViewController)
     {
         self.mainViewController.view.frame = self.view.bounds;
@@ -118,11 +109,8 @@
     }
     self.mainVCWrapperView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.mainVCWrapperView setClipsToBounds:NO];
-    UIImage *shadowImage = [UIImage imageNamed:@"shadow-left-edge.png"];
-    CGRect shadowFrame = CGRectMake(-shadowImage.size.width, 0, shadowImage.size.width, self.view.bounds.size.height);
-    self.shadowView = [[UIImageView alloc] initWithFrame:shadowFrame];
-    [self.shadowView setImage:shadowImage];
-    [self.mainVCWrapperView addSubview:self.shadowView];
+    
+    [self addShadow];
 }
 
 
@@ -142,6 +130,15 @@
     
     // Return YES for supported orientations
     return [self.mainViewController shouldAutorotateToInterfaceOrientation:interfaceOrientation];
+}
+
+- (void) addShadow
+{
+    CALayer* wrapperLayer = self.mainVCWrapperView.layer;
+    wrapperLayer.shadowPath = [[UIBezierPath bezierPathWithRect:wrapperLayer.bounds] CGPath];
+    wrapperLayer.shadowRadius = 8.0f;
+    wrapperLayer.shadowOpacity = 0.75f;
+    wrapperLayer.shadowColor = [[UIColor blackColor] CGColor];
 }
 
 #pragma mark - Property Accessors
@@ -188,23 +185,48 @@
     [self.view addSubview:self.mainVCWrapperView];
 }
 
-- (void)setHiddenViewController:(UIViewController *)hiddenViewController
+- (void)setLeftHiddenViewController:(UIViewController *)hiddenViewController
 {
-    if (hiddenViewController == _hiddenViewController)
+    if (hiddenViewController == _leftHiddenViewController)
     {
         return;
     }
     
-    CGRect frame = _hiddenViewController.view.frame;
-    [_hiddenViewController.view removeFromSuperview];
-    [_hiddenViewController removeFromParentViewController];
-    _hiddenViewController = hiddenViewController;
+    CGRect frame = _leftHiddenViewController.view.frame;
+    [_leftHiddenViewController.view removeFromSuperview];
+    [_leftHiddenViewController removeFromParentViewController];
+    _leftHiddenViewController = hiddenViewController;
     
     if (hiddenViewController)
     {
         [self addChildViewController:hiddenViewController];
         
-        if (self.hiddenViewControllerRevealed)
+        if (self.leftHiddenViewControllerRevealed)
+        {
+            hiddenViewController.view.frame = frame;
+            hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
+        }
+    }
+}
+
+- (void)setRightHiddenViewController:(UIViewController *)hiddenViewController
+{
+    if (hiddenViewController == _rightHiddenViewController)
+    {
+        return;
+    }
+    
+    CGRect frame = _rightHiddenViewController.view.frame;
+    [_rightHiddenViewController.view removeFromSuperview];
+    [_rightHiddenViewController removeFromParentViewController];
+    _rightHiddenViewController = hiddenViewController;
+    
+    if (hiddenViewController)
+    {
+        [self addChildViewController:hiddenViewController];
+        
+        if (self.rightHiddenViewControllerRevealed)
         {
             hiddenViewController.view.frame = frame;
             hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -215,23 +237,44 @@
 
 #pragma mark - Show/Peek/Hide Hidden VC methods
 
-- (void)showHiddenViewControllerAnimated:(BOOL)animated
+- (void)showLeftHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self showHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES];
+    [self showLeftHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES];
 }
 
-- (void)showHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
+- (void)showRightHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self showHiddenViewControllerWithOffset:offset duration:0.25 animated:animated];
+    [self showRightHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES];
 }
 
-- (void)showHiddenViewControllerWithOffset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated
+- (void)showLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 {
-    if (self.hiddenViewController)
+    [self showHiddenViewController:RZRevealViewControllerPositionLeft offset:offset duration:0.25 animated:animated];
+}
+
+- (void)showRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
+{
+    [self showHiddenViewController:RZRevealViewControllerPositionRight offset:offset duration:0.25 animated:animated];
+}
+
+- (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated
+{
+    UIViewController* hiddenVC = nil;
+    if (position == RZRevealViewControllerPositionLeft)
     {
-        self.hiddenViewController.view.frame = self.view.bounds;
-        self.hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:self.hiddenViewController.view belowSubview:self.mainVCWrapperView];
+        hiddenVC = self.leftHiddenViewController;
+    }
+    else
+    {
+        offset = -offset;
+        hiddenVC = self.rightHiddenViewController;
+    }
+    
+    if (hiddenVC)
+    {
+        hiddenVC.view.frame = self.view.bounds;
+        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
         
         if (animated)
         {
@@ -239,69 +282,90 @@
                                   delay:0
                                 options:UIViewAnimationOptionCurveEaseOut
                              animations:^{
-                                 [self.mainViewController revealController:self willShowHiddenController:self.hiddenViewController];
-                                 [self.hiddenViewController revealController:self willShowHiddenController:self.hiddenViewController];
+                                 [self.mainViewController revealController:self willShowHiddenController:self.leftHiddenViewController position:position];
+                                 [hiddenVC revealController:self willShowHiddenController:self.leftHiddenViewController position:position];
                                  
-                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willShowHiddenController:)])
+                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willShowHiddenController:position:)])
                                  {
-                                     [self.delegate revealController:self willShowHiddenController:self.hiddenViewController];
+                                     [self.delegate revealController:self willShowHiddenController:hiddenVC position:position];
                                  }
                                  
                                  self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(offset, 0);
                              }
                              completion:^(BOOL finished) {
-                                 self.hiddenViewControllerRevealed = YES;
+                                 [self setViewControllerRevealed:YES forPosition:position];
                                  
-                                 [self.mainViewController revealController:self didShowHiddenController:self.hiddenViewController];
-                                 [self.hiddenViewController revealController:self didShowHiddenController:self.hiddenViewController];
+                                 [self.mainViewController revealController:self didShowHiddenController:hiddenVC position:position];
+                                 [self.leftHiddenViewController revealController:self didShowHiddenController:hiddenVC position:position];
                                  
-                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didShowHiddenController:)])
+                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didShowHiddenController:position:)])
                                  {
-                                     [self.delegate revealController:self didShowHiddenController:self.hiddenViewController];
+                                     [self.delegate revealController:self didShowHiddenController:hiddenVC position:position];
                                  }
                              }];
         }
         else
         {
-            [self.mainViewController revealController:self willShowHiddenController:self.hiddenViewController];
-            [self.hiddenViewController revealController:self willShowHiddenController:self.hiddenViewController];
+            [self.mainViewController revealController:self willShowHiddenController:hiddenVC position:position];
+            [self.leftHiddenViewController revealController:self willShowHiddenController:hiddenVC position:position];
             
-            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willShowHiddenController:)])
+            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willShowHiddenController:position:)])
             {
-                [self.delegate revealController:self willShowHiddenController:self.hiddenViewController];
+                [self.delegate revealController:self willShowHiddenController:hiddenVC position:position];
             }
             
             self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(offset, 0);
-            self.hiddenViewControllerRevealed = YES;
+            [self setViewControllerRevealed:YES forPosition:position];
             
-            [self.mainViewController revealController:self didShowHiddenController:self.hiddenViewController];
-            [self.hiddenViewController revealController:self didShowHiddenController:self.hiddenViewController];
+            [self.mainViewController revealController:self didShowHiddenController:hiddenVC position:position];
+            [self.leftHiddenViewController revealController:self didShowHiddenController:hiddenVC position:position];
             
-            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didShowHiddenController:)])
+            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didShowHiddenController:position:)])
             {
-                [self.delegate revealController:self didShowHiddenController:self.hiddenViewController];
+                [self.delegate revealController:self didShowHiddenController:hiddenVC position:position];
             }
         }
     }
 }
 
-- (void)peekHiddenViewControllerAnimated:(BOOL)animated
+- (void)peekLeftHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self peekHiddenViewControllerWithOffset:self.peekHiddenOffset animated:animated];
+    [self peekLeftHiddenViewControllerWithOffset:self.peekHiddenOffset animated:animated];
 }
 
-- (void)peekHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated
+- (void)peekRightHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self peekHiddenViewControllerWithOffset:offset duration:0.25 animated:animated];
+    [self peekRightHiddenViewControllerWithOffset:self.peekHiddenOffset animated:animated];
 }
 
-- (void)peekHiddenViewControllerWithOffset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated
+- (void)peekLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated
 {
-    if (self.hiddenViewController)
+    [self peekHiddenViewController:RZRevealViewControllerPositionLeft offset:offset duration:0.25 animated:animated];
+}
+
+- (void)peekRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated
+{
+    [self peekHiddenViewController:RZRevealViewControllerPositionRight offset:offset duration:0.25 animated:animated];
+}
+
+- (void)peekHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated
+{
+    UIViewController* hiddenVC = nil;
+    if (position == RZRevealViewControllerPositionLeft)
     {
-        self.hiddenViewController.view.frame = self.view.bounds;
-        self.hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:self.hiddenViewController.view belowSubview:self.mainVCWrapperView];
+        hiddenVC = self.leftHiddenViewController;
+    }
+    else
+    {
+        offset = -offset;
+        hiddenVC = self.rightHiddenViewController;
+    }
+
+    if (hiddenVC)
+    {
+        hiddenVC.view.frame = self.view.bounds;
+        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
         
         if (animated)
         {
@@ -309,113 +373,132 @@
                                   delay:0
                                 options:UIViewAnimationOptionCurveEaseOut
                              animations:^{
-                                 [self.mainViewController revealController:self willPeekHiddenController:self.hiddenViewController];
-                                 [self.hiddenViewController revealController:self willPeekHiddenController:self.hiddenViewController];
+                                 [self.mainViewController revealController:self willPeekHiddenController:hiddenVC position:position];
+                                 [self.leftHiddenViewController revealController:self willPeekHiddenController:hiddenVC position:position];
                                  
-                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willPeekHiddenController:)])
+                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willPeekHiddenController:position:)])
                                  {
-                                     [self.delegate revealController:self willPeekHiddenController:self.hiddenViewController];
+                                     [self.delegate revealController:self willPeekHiddenController:hiddenVC position:position];
                                  }
                                  
                                  self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(offset, 0);
                              }
                              completion:^(BOOL finished) {
-                                 self.hiddenViewControllerRevealed = YES;
+                                 [self setViewControllerRevealed:YES forPosition:position];
                                  
-                                 [self.mainViewController revealController:self didPeekHiddenController:self.hiddenViewController];
-                                 [self.hiddenViewController revealController:self didPeekHiddenController:self.hiddenViewController];
+                                 [self.mainViewController revealController:self didPeekHiddenController:hiddenVC position:position];
+                                 [self.leftHiddenViewController revealController:self didPeekHiddenController:hiddenVC position:position];
                                  
-                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didPeekHiddenController:)])
+                                 if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didPeekHiddenController:position:)])
                                  {
-                                     [self.delegate revealController:self didPeekHiddenController:self.hiddenViewController];
+                                     [self.delegate revealController:self didPeekHiddenController:hiddenVC position:position];
                                  }
                              }];
         }
         else
         {
-            [self.mainViewController revealController:self willPeekHiddenController:self.hiddenViewController];
-            [self.hiddenViewController revealController:self willPeekHiddenController:self.hiddenViewController];
+            [self.mainViewController revealController:self willPeekHiddenController:hiddenVC position:position];
+            [self.leftHiddenViewController revealController:self willPeekHiddenController:hiddenVC position:position];
             
-            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willPeekHiddenController:)])
+            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willPeekHiddenController:position:)])
             {
-                [self.delegate revealController:self willPeekHiddenController:self.hiddenViewController];
+                [self.delegate revealController:self willPeekHiddenController:hiddenVC position:position];
             }
             
             self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(offset, 0);
-            self.hiddenViewControllerRevealed = YES;
+            [self setViewControllerRevealed:YES forPosition:position];
             
-            [self.mainViewController revealController:self didPeekHiddenController:self.hiddenViewController];
-            [self.hiddenViewController revealController:self didPeekHiddenController:self.hiddenViewController];
+            [self.mainViewController revealController:self didPeekHiddenController:hiddenVC position:position];
+            [self.leftHiddenViewController revealController:self didPeekHiddenController:hiddenVC position:position];
             
-            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didPeekHiddenController:)])
+            if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didPeekHiddenController:position:)])
             {
-                [self.delegate revealController:self didPeekHiddenController:self.hiddenViewController];
+                [self.delegate revealController:self didPeekHiddenController:hiddenVC position:position];
             }
         }
     }
 }
 
-- (void)hideHiddenViewControllerAnimated:(BOOL)animated
+- (void)hideLeftHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self hideHiddenViewControllerWithDuration:0.25 animated:animated];
+    [self hideHiddenViewController:RZRevealViewControllerPositionLeft duration:0.25 animated:animated];
 }
 
-- (void)hideHiddenViewControllerWithDuration:(CGFloat)duration animated:(BOOL)animated
+- (void)hideRightHiddenViewControllerAnimated:(BOOL)animated
 {
+    [self hideHiddenViewController:RZRevealViewControllerPositionRight duration:0.25 animated:animated];
+}
+
+- (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated
+{
+    UIViewController* vcToHide = (position == RZRevealViewControllerPositionLeft) ? self.leftHiddenViewController: self.rightHiddenViewController;
+
     if (animated)
     {
         [UIView animateWithDuration:duration
                               delay:0
                             options:UIViewAnimationOptionCurveEaseOut
                          animations:^{
-                             [self.mainViewController revealController:self willHideHiddenController:self.hiddenViewController];
-                             [self.hiddenViewController revealController:self willHideHiddenController:self.hiddenViewController];
+                             [self.mainViewController revealController:self willHideHiddenController:vcToHide position:position];
+                             [vcToHide revealController:self willHideHiddenController:vcToHide position:position];
                              
-                             if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willHideHiddenController:)])
+                             if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willHideHiddenController:position:)])
                              {
-                                 [self.delegate revealController:self willHideHiddenController:self.hiddenViewController];
+                                 [self.delegate revealController:self willHideHiddenController:vcToHide position:position];
                              }
                              
                              self.mainVCWrapperView.transform = CGAffineTransformIdentity;
                          }
                          completion:^(BOOL finished) {
-                             [self.hiddenViewController.view removeFromSuperview];
-                             self.hiddenViewControllerRevealed = NO;
+                             [vcToHide.view removeFromSuperview];
+                             [self setViewControllerRevealed:NO forPosition:position];
                              
-                             [self.mainViewController revealController:self didHideHiddenController:self.hiddenViewController];
-                             [self.hiddenViewController revealController:self didHideHiddenController:self.hiddenViewController];
+                             [self.mainViewController revealController:self didHideHiddenController:vcToHide position:position];
+                             [self.leftHiddenViewController revealController:self didHideHiddenController:vcToHide position:position];
                              
-                             if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didHideHiddenController:)])
+                             if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didHideHiddenController:position:)])
                              {
-                                 [self.delegate revealController:self didHideHiddenController:self.hiddenViewController];
+                                 [self.delegate revealController:self didHideHiddenController:vcToHide position:position];
                              }
                          }];
     }
     else
     {
-        [self.mainViewController revealController:self willHideHiddenController:self.hiddenViewController];
-        [self.hiddenViewController revealController:self willHideHiddenController:self.hiddenViewController];
+        [self.mainViewController revealController:self willHideHiddenController:vcToHide position:position];
+        [self.leftHiddenViewController revealController:self willHideHiddenController:vcToHide position:position];
         
-        if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willHideHiddenController:)])
+        if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:willHideHiddenController:position:)])
         {
-            [self.delegate revealController:self willHideHiddenController:self.hiddenViewController];
+            [self.delegate revealController:self willHideHiddenController:vcToHide position:position];
         }
         
         self.mainVCWrapperView.transform = CGAffineTransformIdentity;
-        [self.hiddenViewController.view removeFromSuperview];
-        self.hiddenViewControllerRevealed = NO;
+        [vcToHide.view removeFromSuperview];
+        [self setViewControllerRevealed:NO forPosition:position];
         
-        [self.mainViewController revealController:self didHideHiddenController:self.hiddenViewController];
-        [self.hiddenViewController revealController:self didHideHiddenController:self.hiddenViewController];
+        [self.mainViewController revealController:self didHideHiddenController:vcToHide position:position];
+        [self.leftHiddenViewController revealController:self didHideHiddenController:vcToHide position:position];
         
-        if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didHideHiddenController:)])
+        if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didHideHiddenController:position:)])
         {
-            [self.delegate revealController:self didHideHiddenController:self.hiddenViewController];
+            [self.delegate revealController:self didHideHiddenController:vcToHide position:position];
         }
     }
 }
 
+- (void) setViewControllerRevealed:(BOOL)revealed forPosition:(RZRevealViewControllerPosition)position {
+    if (position == RZRevealViewControllerPositionLeft)
+    {
+        self.leftHiddenViewControllerRevealed = revealed;
+    }
+    else
+    {
+        self.rightHiddenViewControllerRevealed = revealed;
+    }
+}
+
 #pragma mark - UIGestureRecognizer Callbacks
+
 - (void)revealPanTriggered:(UIPanGestureRecognizer *)panGR
 {
     static CGPoint initialTouchPoint;
@@ -429,7 +512,7 @@
     
     static NSTimeInterval lastTime;
     static NSTimeInterval currentTime;
-    
+        
     CGFloat locationOffset;
     
     switch (panGR.state) {
@@ -445,11 +528,6 @@
             currentPeekHiddenOffset = self.peekHiddenOffset;
             currentShowHiddenOffset = self.showHiddenOffset;
             
-            if (!self.hiddenViewControllerRevealed)
-            {
-                [self peekHiddenViewControllerWithOffset:0.0 animated:NO];
-            }
-            
             break;
         case UIGestureRecognizerStateChanged:
             lastTouchPoint = currentLocation;
@@ -458,11 +536,33 @@
             currentTime = [NSDate timeIntervalSinceReferenceDate];
             locationOffset = round(currentLocation.x - initialTouchPoint.x + initialOffset);
             
+            // This looks more complex than it needs to be but it's because we can pan to either side,
+            // so we need to know which way the user intends to move before we start moving.
             if (locationOffset < 0.0)
             {
-                locationOffset = 0.0;
+                if (!self.rightHiddenViewController)
+                {
+                    locationOffset = 0.0;
+                }
+                else if (!self.rightHiddenViewControllerRevealed)
+                {
+                    [self peekRightHiddenViewControllerWithOffset:0.0 animated:NO];
+                }
+            } else if (locationOffset > 0.0)
+            {
+                if (!self.leftHiddenViewController)
+                {
+                    locationOffset = 0.0;
+                }
+                else if (!self.leftHiddenViewControllerRevealed)
+                {
+                    [self peekLeftHiddenViewControllerWithOffset:0.0 animated:NO];
+                    return;
+                }
             }
-            else if (locationOffset > currentPeekHiddenOffset)
+            
+            
+            if (locationOffset > currentPeekHiddenOffset)
             {
                 if (initialOffset > currentPeekHiddenOffset)
                 {
@@ -485,17 +585,16 @@
             currentLocation = [panGR locationInView:self.view];
             locationOffset = currentLocation.x - initialTouchPoint.x + initialOffset;
             
-            CGFloat lastOffset = currentLocation.x - lastTouchPoint.x;
             double velocity = (currentLocation.x - lastTouchPoint.x) / (currentTime - lastTime);
             double speed = fabs(velocity);
+            RZRevealViewControllerPosition position = locationOffset > 0 ? RZRevealViewControllerPositionLeft : RZRevealViewControllerPositionRight;
+            CGFloat absLocOffset = fabs(locationOffset);
             
-            //            NSLog(@"Last Offset: %f Velocity: %f", lastOffset, velocity);
-            
-            if (lastOffset > 0.0 || (locationOffset > initialOffset && lastOffset > -10.0))
-            {
-                if (initialOffset >= currentShowHiddenOffset && locationOffset > currentShowHiddenOffset)
+            if (absLocOffset > fabs(initialOffset))
+            {                
+                if (absLocOffset > currentShowHiddenOffset)
                 {
-                    CGFloat newDistance = fabs(currentPeekHiddenOffset - locationOffset);
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -508,11 +607,11 @@
                         duration = 0.25;
                     }
                     
-                    [self showHiddenViewControllerWithOffset:currentShowHiddenOffset duration:duration animated:YES];
+                    [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES];
                 }
-                else if (locationOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
+                else if (absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
                 {
-                    CGFloat newDistance = fabs(currentPeekHiddenOffset - locationOffset);
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -525,11 +624,11 @@
                         duration = 0.25;
                     }
                     
-                    [self peekHiddenViewControllerWithOffset:currentPeekHiddenOffset duration:duration animated:YES];
+                    [self peekHiddenViewController:position offset:currentPeekHiddenOffset duration:duration animated:YES];
                 }
-                else if (locationOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
+                else if (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
                 {
-                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - locationOffset);
+                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -542,11 +641,11 @@
                         duration = 0.25;
                     }
                     
-                    [self peekHiddenViewControllerWithOffset:currentQuickPeekHiddenOffset duration:duration animated:YES];
+                    [self peekHiddenViewController:position offset:currentQuickPeekHiddenOffset duration:duration animated:YES];
                 }
                 else
                 {
-                    CGFloat newDistance = fabs(locationOffset);
+                    CGFloat newDistance = absLocOffset;
                     
                     double duration = newDistance / speed;
                     
@@ -559,12 +658,12 @@
                         duration = 0.25;
                     }
                     
-                    [self hideHiddenViewControllerWithDuration:duration animated:YES];
+                    [self hideHiddenViewController:position duration:duration animated:YES];
                 }
             }
             else
             {
-                CGFloat newDistance = fabs(locationOffset);
+                CGFloat newDistance = absLocOffset;
                 
                 double duration = newDistance / speed;
                 
@@ -577,7 +676,7 @@
                     duration = 0.25;
                 }
                 
-                [self hideHiddenViewControllerWithDuration:duration animated:YES];
+                [self hideHiddenViewController:position duration:duration animated:YES];
             }
             
             break;
@@ -594,7 +693,7 @@
     {
         CGPoint location = [gestureRecognizer locationInView:self.view];
         
-        if (!self.revealEnabled || (!self.hiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
+        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
         {
             return NO;
         }
@@ -627,28 +726,11 @@
 
 #pragma mark - RZRevealViewControllerDelegate Empty Implementations
 
-- (void)revealController:(RZRevealViewController*)revealController willShowHiddenController:(UIViewController*)hiddenController
-{
-}
-
-- (void)revealController:(RZRevealViewController*)revealController didShowHiddenController:(UIViewController*)hiddenController
-{
-}
-
-- (void)revealController:(RZRevealViewController*)revealController willHideHiddenController:(UIViewController*)hiddenController
-{
-}
-
-- (void)revealController:(RZRevealViewController*)revealController didHideHiddenController:(UIViewController*)hiddenController
-{
-}
-
-- (void)revealController:(RZRevealViewController*)revealController willPeekHiddenController:(UIViewController*)hiddenController
-{
-}
-
-- (void)revealController:(RZRevealViewController*)revealController didPeekHiddenController:(UIViewController*)hiddenController
-{
-}
+- (void)revealController:(RZRevealViewController*)revealController willShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
+- (void)revealController:(RZRevealViewController*)revealController didShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
+- (void)revealController:(RZRevealViewController*)revealController willHideHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
+- (void)revealController:(RZRevealViewController*)revealController didHideHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
+- (void)revealController:(RZRevealViewController*)revealController willPeekHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
+- (void)revealController:(RZRevealViewController*)revealController didPeekHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position {}
 
 @end
