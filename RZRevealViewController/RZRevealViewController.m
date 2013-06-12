@@ -25,24 +25,6 @@
 @end
 
 @implementation RZRevealViewController
-@synthesize mainViewController = _mainViewController;
-@synthesize leftHiddenViewController = _leftHiddenViewController;
-@synthesize rightHiddenViewController = _rightHiddenViewController;
-
-@synthesize mainVCWrapperView = _mainVCWrapperView;
-
-@synthesize leftHiddenViewControllerRevealed = _leftHiddenViewControllerRevealed;
-@synthesize rightHiddenViewControllerRevealed = _rightHiddenViewControllerRevealed;
-@synthesize revealEnabled = _revealEnabled;
-
-@synthesize revealPanGestureRecognizer = revealPanGestureRecognizer;
-
-@synthesize quickPeekHiddenOffset = _quickPeekHiddenOffset;
-@synthesize peekHiddenOffset = _peekHiddenOffset;
-@synthesize showHiddenOffset = _showHiddenOffset;
-@synthesize revealGestureThreshold = _revealGestureThreshold;
-
-@synthesize delegate = _delegate;
 
 - (id)initWithMainViewController:(UIViewController*)mainVC
         leftHiddenViewController:(UIViewController*)leftVC
@@ -108,7 +90,7 @@
 {
     [super viewDidLoad];
     
-    if (nil == self.revealPanGestureRecognizer && (self.leftHiddenViewController || self.rightHiddenViewController))
+    if (nil == self.revealPanGestureRecognizer)
     {
         self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
         self.revealPanGestureRecognizer.delegate = self;
@@ -228,7 +210,7 @@
     }
 }
 
-- (void)setRighttHiddenViewController:(UIViewController *)hiddenViewController
+- (void)setRightHiddenViewController:(UIViewController *)hiddenViewController
 {
     if (hiddenViewController == _rightHiddenViewController)
     {
@@ -606,12 +588,13 @@
             double velocity = (currentLocation.x - lastTouchPoint.x) / (currentTime - lastTime);
             double speed = fabs(velocity);
             RZRevealViewControllerPosition position = locationOffset > 0 ? RZRevealViewControllerPositionLeft : RZRevealViewControllerPositionRight;
-
-            if (fabs(locationOffset) > fabs(initialOffset))
+            CGFloat absLocOffset = fabs(locationOffset);
+            
+            if (absLocOffset > fabs(initialOffset))
             {                
-                if (fabs(locationOffset) > currentShowHiddenOffset)
+                if (absLocOffset > currentShowHiddenOffset)
                 {
-                    CGFloat newDistance = fabs(currentPeekHiddenOffset - fabs(locationOffset));
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -626,9 +609,9 @@
                     
                     [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES];
                 }
-                else if (fabs(locationOffset) > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
+                else if (absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
                 {
-                    CGFloat newDistance = fabs(currentPeekHiddenOffset - fabs(locationOffset));
+                    CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -643,9 +626,9 @@
                     
                     [self peekHiddenViewController:position offset:currentPeekHiddenOffset duration:duration animated:YES];
                 }
-                else if (fabs(locationOffset) > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
+                else if (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
                 {
-                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - fabs(locationOffset));
+                    CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - absLocOffset);
                     
                     double duration = newDistance / speed;
                     
@@ -662,7 +645,7 @@
                 }
                 else
                 {
-                    CGFloat newDistance = fabs(locationOffset);
+                    CGFloat newDistance = absLocOffset;
                     
                     double duration = newDistance / speed;
                     
@@ -680,7 +663,7 @@
             }
             else
             {
-                CGFloat newDistance = fabs(locationOffset);
+                CGFloat newDistance = absLocOffset;
                 
                 double duration = newDistance / speed;
                 
