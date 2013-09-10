@@ -83,6 +83,7 @@
     self.peekHiddenOffset = self.view.bounds.size.width * 0.85;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
     self.revealGestureThreshold = CGFLOAT_MAX;
+    self.openRevealGestureThreashold = 0.0;
 }
 
 #pragma mark - View lifecycle
@@ -239,25 +240,39 @@
 
 - (void)showLeftHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self showLeftHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES];
+    [self showLeftHiddenViewControllerAnimated:animated completionBlock:nil];
 }
-
+- (void)showLeftHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self showLeftHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES completionBlock:block];
+}
 - (void)showRightHiddenViewControllerAnimated:(BOOL)animated
 {
     [self showRightHiddenViewControllerWithOffset:self.showHiddenOffset animated:YES];
 }
-
+- (void)showRightHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self showRightHiddenViewControllerWithOffset:self.showHiddenOffset animated:animated completionBlock:block];
+}
 - (void)showLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 {
-    [self showHiddenViewController:RZRevealViewControllerPositionLeft offset:offset duration:0.25 animated:animated];
+    [self showLeftHiddenViewControllerWithOffset:offset animated:animated completionBlock:nil];
 }
-
+- (void)showLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self showHiddenViewController:RZRevealViewControllerPositionLeft offset:offset duration:0.25 animated:animated completionBlock:block];
+}
 - (void)showRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 {
-    [self showHiddenViewController:RZRevealViewControllerPositionRight offset:offset duration:0.25 animated:animated];
+    [self showRightHiddenViewControllerWithOffset:offset animated:animated completionBlock:nil];
+}
+- (void)showRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self showHiddenViewController:RZRevealViewControllerPositionRight offset:offset duration:0.25 animated:animated completionBlock:block];
 }
 
-- (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated
+
+- (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
 {
     UIViewController* hiddenVC = nil;
     if (position == RZRevealViewControllerPositionLeft)
@@ -295,6 +310,10 @@
                              completion:^(BOOL finished) {
                                  [self setViewControllerRevealed:YES forPosition:position];
                                  
+                                 if (block) {
+                                     block(finished);
+                                 }
+                                 
                                  [self.mainViewController revealController:self didShowHiddenController:hiddenVC position:position];
                                  [self.leftHiddenViewController revealController:self didShowHiddenController:hiddenVC position:position];
                                  
@@ -323,6 +342,9 @@
             if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didShowHiddenController:position:)])
             {
                 [self.delegate revealController:self didShowHiddenController:hiddenVC position:position];
+            }
+            if (block) {
+                block(YES);
             }
         }
     }
@@ -421,15 +443,23 @@
 
 - (void)hideLeftHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self hideHiddenViewController:RZRevealViewControllerPositionLeft duration:0.25 animated:animated];
+    [self hideLeftHiddenViewControllerAnimated:animated completionBlock:nil];
+}
+- (void)hideLeftHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self hideHiddenViewController:RZRevealViewControllerPositionLeft duration:0.25 animated:animated completionBlock:block];
 }
 
 - (void)hideRightHiddenViewControllerAnimated:(BOOL)animated
 {
-    [self hideHiddenViewController:RZRevealViewControllerPositionRight duration:0.25 animated:animated];
+    [self hideRightHiddenViewControllerAnimated:animated completionBlock:nil];
+}
+- (void)hideRightHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
+{
+    [self hideHiddenViewController:RZRevealViewControllerPositionRight duration:0.25 animated:animated completionBlock:block];
 }
 
-- (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated
+- (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
 {
     UIViewController* vcToHide = (position == RZRevealViewControllerPositionLeft) ? self.leftHiddenViewController: self.rightHiddenViewController;
 
@@ -460,6 +490,9 @@
                              {
                                  [self.delegate revealController:self didHideHiddenController:vcToHide position:position];
                              }
+                             if (block) {
+                                 block(finished);
+                             }
                          }];
     }
     else
@@ -482,6 +515,9 @@
         if (self.delegate && [self.delegate respondsToSelector:@selector(revealController:didHideHiddenController:position:)])
         {
             [self.delegate revealController:self didHideHiddenController:vcToHide position:position];
+        }
+        if (block) {
+            block(YES);
         }
     }
 }
@@ -607,7 +643,7 @@
                         duration = 0.25;
                     }
                     
-                    [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES];
+                    [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES completionBlock:nil];
                 }
                 else if (absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
                 {
@@ -658,7 +694,7 @@
                         duration = 0.25;
                     }
                     
-                    [self hideHiddenViewController:position duration:duration animated:YES];
+                    [self hideHiddenViewController:position duration:duration animated:YES completionBlock:nil];
                 }
             }
             else
@@ -676,7 +712,7 @@
                     duration = 0.25;
                 }
                 
-                [self hideHiddenViewController:position duration:duration animated:YES];
+                [self hideHiddenViewController:position duration:duration animated:YES completionBlock:nil];
             }
             
             break;
@@ -693,7 +729,7 @@
     {
         CGPoint location = [gestureRecognizer locationInView:self.view];
         
-        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
+        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold) || (self.leftHiddenViewControllerRevealed && location.x < self.openRevealGestureThreashold))
         {
             return NO;
         }
