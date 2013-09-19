@@ -169,6 +169,7 @@
     }
     
     [_mainViewController.view removeFromSuperview];
+    [_mainViewController willMoveToParentViewController:nil];
     [_mainViewController removeFromParentViewController];
     _mainViewController = mainViewController;
     
@@ -203,18 +204,20 @@
     
     CGRect frame = _leftHiddenViewController.view.frame;
     [_leftHiddenViewController.view removeFromSuperview];
+    [_leftHiddenViewController willMoveToParentViewController:nil];
     [_leftHiddenViewController removeFromParentViewController];
     _leftHiddenViewController = hiddenViewController;
     
     if (hiddenViewController)
     {
-        [self addChildViewController:hiddenViewController];
         
         if (self.leftHiddenViewControllerRevealed)
         {
+            [self addChildViewController:hiddenViewController];
             hiddenViewController.view.frame = frame;
             hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
             [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
+            [hiddenViewController didMoveToParentViewController:self];
         }
     }
 }
@@ -228,18 +231,19 @@
     
     CGRect frame = _rightHiddenViewController.view.frame;
     [_rightHiddenViewController.view removeFromSuperview];
+    [_rightHiddenViewController willMoveToParentViewController:nil];
     [_rightHiddenViewController removeFromParentViewController];
     _rightHiddenViewController = hiddenViewController;
     
     if (hiddenViewController)
-    {
-        [self addChildViewController:hiddenViewController];
-        
+    {        
         if (self.rightHiddenViewControllerRevealed)
         {
+            [self addChildViewController:hiddenViewController];
             hiddenViewController.view.frame = frame;
             hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
             [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
+            [hiddenViewController didMoveToParentViewController:self];
         }
     }
 }
@@ -292,9 +296,14 @@
     
     if (hiddenVC)
     {
-        hiddenVC.view.frame = self.view.bounds;
-        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+        if (hiddenVC.parentViewController == nil)
+        {
+            [self addChildViewController:hiddenVC];
+            hiddenVC.view.frame = self.view.bounds;
+            hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+            [hiddenVC didMoveToParentViewController:self];
+        }
         
         if (animated)
         {
@@ -383,9 +392,14 @@
 
     if (hiddenVC)
     {
-        hiddenVC.view.frame = self.view.bounds;
-        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+        if (hiddenVC.parentViewController == nil)
+        {
+            [self addChildViewController:hiddenVC];
+            hiddenVC.view.frame = self.view.bounds;
+            hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+            [hiddenVC didMoveToParentViewController:self];
+        }
         
         if (animated)
         {
@@ -470,7 +484,11 @@
                              self.mainVCWrapperView.transform = CGAffineTransformIdentity;
                          }
                          completion:^(BOOL finished) {
+                             
+                             [vcToHide willMoveToParentViewController:nil];
+                             [vcToHide removeFromParentViewController];
                              [vcToHide.view removeFromSuperview];
+                             
                              [self setViewControllerRevealed:NO forPosition:position];
                              
                              [self.mainViewController revealController:self didHideHiddenController:vcToHide position:position];
