@@ -13,7 +13,8 @@
 
 @property (assign, nonatomic, readwrite, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readwrite, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (strong, nonatomic, readwrite) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (strong, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (strong, nonatomic) UITapGestureRecognizer *hideTapGestureRecognizer;
 
 - (void)setupRevealViewController;
 
@@ -22,6 +23,8 @@
 - (void)hideHiddenViewController:(RZRevealViewControllerPosition)position duration:(CGFloat)duration animated:(BOOL)animated;
 
 - (void)revealPanTriggered:(UIPanGestureRecognizer*)panGR;
+- (void)hideTapTriggered:(UITapGestureRecognizer*)tapGR;
+
 @end
 
 @implementation RZRevealViewController
@@ -110,6 +113,10 @@
     }
     self.mainVCWrapperView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.mainVCWrapperView setClipsToBounds:NO];
+    
+    self.hideTapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(hideTapTriggered:)];
+    self.hideTapGestureRecognizer.enabled = NO;
+    [self.mainVCWrapperView addGestureRecognizer:self.hideTapGestureRecognizer];
     
     [self addShadow];
 }
@@ -234,6 +241,17 @@
             [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
         }
     }
+}
+
+- (void)setAllowMainVCInteractionWhileRevealed:(BOOL)allowMainVCInteractionWhileRevealed
+{
+    _allowMainVCInteractionWhileRevealed = allowMainVCInteractionWhileRevealed;
+    if (self.leftHiddenViewControllerRevealed || self.rightHiddenViewControllerRevealed)
+    {
+        self.mainViewController.view.userInteractionEnabled = allowMainVCInteractionWhileRevealed;
+        self.hideTapGestureRecognizer.enabled = !allowMainVCInteractionWhileRevealed;
+    }
+    
 }
 
 #pragma mark - Show/Peek/Hide Hidden VC methods
@@ -498,11 +516,17 @@
         self.rightHiddenViewControllerRevealed = revealed;
     }
     
-    if (!self.allowMainVCInteractionWhileRevealed)
+    if (revealed)
     {
         // Must disable interaction on VC itself, NOT wrapper
         // Disabling on wrapper allows "touch through" to hidden VC
-        self.mainViewController.view.userInteractionEnabled = !revealed;
+        self.mainViewController.view.userInteractionEnabled = self.allowMainVCInteractionWhileRevealed;
+        self.hideTapGestureRecognizer.enabled = !self.allowMainVCInteractionWhileRevealed;
+    }
+    else
+    {
+        self.mainViewController.view.userInteractionEnabled = YES;
+        self.hideTapGestureRecognizer.enabled = NO;
     }
 }
 
@@ -557,7 +581,8 @@
                 {
                     [self peekRightHiddenViewControllerWithOffset:0.0 animated:NO];
                 }
-            } else if (locationOffset > 0.0)
+            }
+            else if (locationOffset > 0.0)
             {
                 if (!self.leftHiddenViewController)
                 {
@@ -566,7 +591,6 @@
                 else if (!self.leftHiddenViewControllerRevealed)
                 {
                     [self peekLeftHiddenViewControllerWithOffset:0.0 animated:NO];
-                    return;
                 }
             }
             
@@ -589,6 +613,7 @@
             self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(locationOffset, 0);
             
             break;
+            
         case UIGestureRecognizerStateEnded:
         case UIGestureRecognizerStateCancelled:
             currentLocation = [panGR locationInView:self.view];
@@ -691,6 +716,18 @@
             break;
         default:
             break;
+    }
+}
+
+- (void)hideTapTriggered:(UITapGestureRecognizer *)tapGR
+{
+    if (self.leftHiddenViewControllerRevealed)
+    {
+        [self hideLeftHiddenViewControllerAnimated:YES];
+    }
+    else if (self.rightHiddenViewControllerRevealed)
+    {
+        [self hideRightHiddenViewControllerAnimated:YES];
     }
 }
 
