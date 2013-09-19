@@ -75,6 +75,7 @@
 - (void)setupRevealViewController
 {
     self.revealEnabled = YES;
+    self.peekEnabled = NO;
     
     if (nil == self.revealPanGestureRecognizer)
     {
@@ -83,10 +84,10 @@
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
     
-    self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.85;
-    self.peekHiddenOffset = self.view.bounds.size.width * 0.85;
+    self.revealOffset = 0;
+    self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.25;
+    self.peekHiddenOffset = self.view.bounds.size.width * 0.5;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
-    self.revealGestureThreshold = CGFLOAT_MAX;
 }
 
 #pragma mark - View lifecycle
@@ -626,7 +627,7 @@
             
             if (absLocOffset > fabs(initialOffset))
             {                
-                if (absLocOffset > currentShowHiddenOffset)
+                if (absLocOffset > (self.peekEnabled ? currentShowHiddenOffset : self.revealOffset))
                 {
                     CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
@@ -643,7 +644,7 @@
                     
                     [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES];
                 }
-                else if (absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
+                else if (self.isPeekEnabled && absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
                 {
                     CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
@@ -660,7 +661,7 @@
                     
                     [self peekHiddenViewController:position offset:currentPeekHiddenOffset duration:duration animated:YES];
                 }
-                else if (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
+                else if (self.isPeekEnabled && (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0))
                 {
                     CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - absLocOffset);
                     
@@ -745,7 +746,7 @@
             delegateAllowsReveal = [self.delegate revealControllerShouldBeginReveal:self];
         }
         
-        if (!delegateAllowsReveal || !self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
+        if (!delegateAllowsReveal || !self.revealEnabled)
         {
             return NO;
         }

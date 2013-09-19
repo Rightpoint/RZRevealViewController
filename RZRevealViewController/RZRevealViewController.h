@@ -28,15 +28,17 @@ RZRevealViewControllerPosition;
 
 @property (assign, nonatomic, readonly, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled;
+
+@property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled; // Defaults to YES
+@property (assign, nonatomic, getter = isPeekEnabled) BOOL peekEnabled; // Defaults to NO
 
 // Allow interaction with main VC while hidden VC is revealed. Defaults to NO.
 @property (assign, nonatomic) BOOL allowMainVCInteractionWhileRevealed;
 
+@property (assign, nonatomic) CGFloat revealOffset;                             // Defaults to zero. Pan distance must exceed this to trigger reveal/hide.
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
-@property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width
-@property (assign, nonatomic) CGFloat revealGestureThreshold;                   // Defaults to CGFLOAT_MAX
+@property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width * 0.85
 
 @property (weak, nonatomic) id<RZRevealViewControllerDelegate> delegate;
 
