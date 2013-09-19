@@ -30,6 +30,8 @@ RZRevealViewControllerPosition;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
 @property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled;
 
+@property (assign, nonatomic) BOOL allowMainVCInteractionWhileRevealed; // Allow interaction with main VC while hidden VC is revealed. Defaults to NO.
+
 @property (strong, nonatomic, readonly) UIPanGestureRecognizer *revealPanGestureRecognizer;
 
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0

@@ -32,6 +32,7 @@
 {
     self = [self init];
     if (self) {
+                
         [self setupRevealViewController];
 
         self.mainViewController = mainVC;
@@ -487,6 +488,7 @@
 }
 
 - (void) setViewControllerRevealed:(BOOL)revealed forPosition:(RZRevealViewControllerPosition)position {
+    
     if (position == RZRevealViewControllerPositionLeft)
     {
         self.leftHiddenViewControllerRevealed = revealed;
@@ -494,6 +496,13 @@
     else
     {
         self.rightHiddenViewControllerRevealed = revealed;
+    }
+    
+    if (!self.allowMainVCInteractionWhileRevealed)
+    {
+        // Must disable interaction on VC itself, NOT wrapper
+        // Disabling on wrapper allows "touch through" to hidden VC
+        self.mainViewController.view.userInteractionEnabled = !revealed;
     }
 }
 
