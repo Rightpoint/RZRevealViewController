@@ -30,7 +30,8 @@ RZRevealViewControllerPosition;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
 @property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled;
 
-@property (assign, nonatomic) BOOL allowMainVCInteractionWhileRevealed; // Allow interaction with main VC while hidden VC is revealed. Defaults to NO.
+// Allow interaction with main VC while hidden VC is revealed. Defaults to NO.
+@property (assign, nonatomic) BOOL allowMainVCInteractionWhileRevealed;
 
 @property (strong, nonatomic, readonly) UIPanGestureRecognizer *revealPanGestureRecognizer;
 
@@ -62,6 +63,9 @@ RZRevealViewControllerPosition;
 @protocol RZRevealViewControllerDelegate <NSObject>
 
 @optional
+
+// Implement and return NO to disable a potential reveal gesture/action
+- (BOOL)revealControllerShouldBeginReveal:(RZRevealViewController*)revealController;
 
 - (void)revealController:(RZRevealViewController*)revealController willShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position;
 - (void)revealController:(RZRevealViewController*)revealController didShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position;

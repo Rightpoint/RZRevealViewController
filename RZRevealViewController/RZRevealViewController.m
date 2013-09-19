@@ -702,7 +702,13 @@
     {
         CGPoint location = [gestureRecognizer locationInView:self.view];
         
-        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
+        BOOL delegateAllowsReveal = YES;
+        if ([self.delegate respondsToSelector:@selector(revealControllerShouldBeginReveal:)])
+        {
+            delegateAllowsReveal = [self.delegate revealControllerShouldBeginReveal:self];
+        }
+        
+        if (!delegateAllowsReveal || !self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold))
         {
             return NO;
         }
