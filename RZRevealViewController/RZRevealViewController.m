@@ -614,7 +614,7 @@
             }
             
             
-            if (locationOffset > currentPeekHiddenOffset)
+            if (self.isPeekEnabled && locationOffset > currentPeekHiddenOffset)
             {
                 if (initialOffset > currentPeekHiddenOffset)
                 {
@@ -643,8 +643,11 @@
             RZRevealViewControllerPosition position = locationOffset > 0 ? RZRevealViewControllerPositionLeft : RZRevealViewControllerPositionRight;
             CGFloat absLocOffset = fabs(locationOffset);
             
-            if (absLocOffset > fabs(initialOffset))
-            {                
+            // Make sure we have a valid offset for which view controllers are present
+            BOOL validOffset = (locationOffset > 0 && self.leftHiddenViewController != nil) || (locationOffset < 0 && self.rightHiddenViewController != nil);
+            
+            if (validOffset && absLocOffset > fabs(initialOffset))
+            {
                 if (absLocOffset > (self.peekEnabled ? currentShowHiddenOffset : self.revealOffset))
                 {
                     CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
@@ -756,7 +759,6 @@
 {
     if (gestureRecognizer == self.revealPanGestureRecognizer)
     {
-        CGPoint location = [gestureRecognizer locationInView:self.view];
         
         BOOL delegateAllowsReveal = YES;
         if ([self.delegate respondsToSelector:@selector(revealControllerShouldBeginReveal:)])
