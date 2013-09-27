@@ -9,11 +9,40 @@
 #import <QuartzCore/QuartzCore.h>
 #import "RZRevealViewController.h"
 
+// Private pan gesture subclass to prevent overriding delegate externally
+
+@interface RZRevealPanGestureRecognizer : UIPanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate;
+
+@end
+
+@implementation RZRevealPanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    self = [super initWithTarget:target action:action];
+    if (self)
+    {
+        [super setDelegate:delegate];
+    }
+    return self;
+}
+
+- (void)setDelegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    @throw [NSException exceptionWithName:@"RZRevealViewControllerException" reason:@"The delegate of RZRevealViewController's pan gesture recognizer may not be changed" userInfo:nil];
+}
+
+@end
+
+// -----------
+
 @interface RZRevealViewController ()
 
 @property (assign, nonatomic, readwrite, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readwrite, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (strong, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (strong, readwrite, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
 @property (strong, nonatomic) UITapGestureRecognizer *hideTapGestureRecognizer;
 
 - (void)setupRevealViewController;
@@ -79,8 +108,7 @@
     
     if (nil == self.revealPanGestureRecognizer)
     {
-        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
-        self.revealPanGestureRecognizer.delegate = self;
+        self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
     
@@ -97,8 +125,7 @@
     
     if (nil == self.revealPanGestureRecognizer)
     {
-        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
-        self.revealPanGestureRecognizer.delegate = self;
+        self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
         

@@ -26,6 +26,9 @@ RZRevealViewControllerPosition;
 // Defaults to having a basic shadow, change this view's CALayer shadow properties to adjust.
 @property (strong, nonatomic) UIView *mainVCWrapperView;
 
+// Pan gesture for opening/closing reveal panel. Its delegate may not be changed or an exception will be thrown.
+@property (strong, readonly, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
+
 @property (assign, nonatomic, readonly, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
 
