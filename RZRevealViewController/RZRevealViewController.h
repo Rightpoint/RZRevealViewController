@@ -26,16 +26,22 @@ RZRevealViewControllerPosition;
 // Defaults to having a basic shadow, change this view's CALayer shadow properties to adjust.
 @property (strong, nonatomic) UIView *mainVCWrapperView;
 
+// Pan gesture for opening/closing reveal panel. Its delegate may not be changed or an exception will be thrown.
+@property (strong, readonly, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
+
 @property (assign, nonatomic, readonly, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readonly, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled;
 
-@property (strong, nonatomic, readonly) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (assign, nonatomic, getter = isRevealEnabled) BOOL revealEnabled; // Defaults to YES
+@property (assign, nonatomic, getter = isPeekEnabled) BOOL peekEnabled; // Defaults to NO
 
+// Allow interaction with main VC while hidden VC is revealed. Defaults to NO.
+@property (assign, nonatomic) BOOL allowMainVCInteractionWhileRevealed;
+
+@property (assign, nonatomic) CGFloat revealOffset;                             // Defaults to zero. Pan distance must exceed this to trigger reveal/hide.
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
-@property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width
-@property (assign, nonatomic) CGFloat revealGestureThreshold;                   // Defaults to CGFLOAT_MAX
+@property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width * 0.85
 
 @property (weak, nonatomic) id<RZRevealViewControllerDelegate> delegate;
 
@@ -60,6 +66,9 @@ RZRevealViewControllerPosition;
 @protocol RZRevealViewControllerDelegate <NSObject>
 
 @optional
+
+// Implement and return NO to disable a potential reveal gesture/action conditionally
+- (BOOL)revealControllerShouldBeginReveal:(RZRevealViewController*)revealController;
 
 - (void)revealController:(RZRevealViewController*)revealController willShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position;
 - (void)revealController:(RZRevealViewController*)revealController didShowHiddenController:(UIViewController*)hiddenController position:(RZRevealViewControllerPosition)position;
