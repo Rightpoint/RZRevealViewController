@@ -541,9 +541,14 @@
     {
         self.leftHiddenViewControllerRevealed = revealed;
     }
-    else
+    else if (position == RZRevealViewControllerPositionRight)
     {
         self.rightHiddenViewControllerRevealed = revealed;
+    }
+    else if (position == RZRevealViewControllerPositionBoth)
+    {
+        self.rightHiddenViewControllerRevealed = revealed;
+        self.leftHiddenViewControllerRevealed = revealed;
     }
 }
 
@@ -712,7 +717,7 @@
                         duration = kRZRevealDefaultAnimationTime;
                     }
                     
-                    [self hideHiddenViewController:position duration:duration animated:YES completionBlock:nil];
+                    [self hideHiddenViewController:RZRevealViewControllerPositionBoth duration:duration animated:YES completionBlock:nil];
                 }
             }
             else
@@ -731,7 +736,7 @@
                     duration = kRZRevealDefaultAnimationTime;
                 }
                 
-                [self hideHiddenViewController:position duration:duration animated:YES completionBlock:nil];
+                [self hideHiddenViewController:RZRevealViewControllerPositionBoth duration:duration animated:YES completionBlock:nil];
             }
             
             break;

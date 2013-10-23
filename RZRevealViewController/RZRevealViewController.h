@@ -12,7 +12,8 @@ typedef enum
 {
     RZRevealViewControllerPositionLeft,
     RZRevealViewControllerPositionRight,
-    RZRevealViewControllerPositionNone
+    RZRevealViewControllerPositionNone,
+    RZRevealViewControllerPositionBoth
 }
 RZRevealViewControllerPosition;
 
