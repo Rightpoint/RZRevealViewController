@@ -16,17 +16,49 @@
 
 #define kRZRevealDefaultDurationScaleFactor     2.5f
 
+// Private pan gesture subclass to prevent overriding delegate externally
+
+@interface RZRevealPanGestureRecognizer : UIPanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate;
+
+@end
+
+@implementation RZRevealPanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    self = [super initWithTarget:target action:action];
+    if (self)
+    {
+        [super setDelegate:delegate];
+    }
+    return self;
+}
+
+- (void)setDelegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    @throw [NSException exceptionWithName:@"RZRevealViewControllerException" reason:@"The delegate of RZRevealViewController's pan gesture recognizer may not be changed" userInfo:nil];
+}
+
+@end
+
+// -----------
+
 @interface RZRevealViewController ()
 
 @property (assign, nonatomic, readwrite, getter = isLeftHiddenViewControllerRevealed) BOOL leftHiddenViewControllerRevealed;
 @property (assign, nonatomic, readwrite, getter = isRightHiddenViewControllerRevealed) BOOL rightHiddenViewControllerRevealed;
-@property (strong, nonatomic, readwrite) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (strong, readwrite, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
+@property (strong, nonatomic) UITapGestureRecognizer *hideTapGestureRecognizer;
 
 - (void)setupRevealViewController;
 
 - (void)peekHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
 
 - (void)revealPanTriggered:(UIPanGestureRecognizer*)panGR;
+- (void)hideTapTriggered:(UITapGestureRecognizer*)tapGR;
+
 @end
 
 @implementation RZRevealViewController
@@ -37,6 +69,7 @@
 {
     self = [self init];
     if (self) {
+                
         [self setupRevealViewController];
 
         self.mainViewController = mainVC;
@@ -76,16 +109,17 @@
 - (void)setupRevealViewController
 {
     self.revealEnabled = YES;
+    self.peekEnabled = NO;
     
     if (nil == self.revealPanGestureRecognizer)
     {
-        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
-        self.revealPanGestureRecognizer.delegate = self;
+        self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
     
-    self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.85;
-    self.peekHiddenOffset = self.view.bounds.size.width * 0.85;
+    self.revealOffset = 0;
+    self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.25;
+    self.peekHiddenOffset = self.view.bounds.size.width * 0.5;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
     self.revealGestureThreshold = CGFLOAT_MAX;
     self.openRevealGestureThreashold = 0.0;
@@ -98,8 +132,7 @@
     
     if (nil == self.revealPanGestureRecognizer)
     {
-        self.revealPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:)];
-        self.revealPanGestureRecognizer.delegate = self;
+        self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
         
@@ -115,6 +148,10 @@
     }
     self.mainVCWrapperView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.mainVCWrapperView setClipsToBounds:NO];
+    
+    self.hideTapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(hideTapTriggered:)];
+    self.hideTapGestureRecognizer.enabled = NO;
+    [self.mainVCWrapperView addGestureRecognizer:self.hideTapGestureRecognizer];
     
     [self addShadow];
 }
@@ -166,6 +203,7 @@
     }
     
     [_mainViewController.view removeFromSuperview];
+    [_mainViewController willMoveToParentViewController:nil];
     [_mainViewController removeFromParentViewController];
     _mainViewController = mainViewController;
     
@@ -200,18 +238,20 @@
     
     CGRect frame = _leftHiddenViewController.view.frame;
     [_leftHiddenViewController.view removeFromSuperview];
+    [_leftHiddenViewController willMoveToParentViewController:nil];
     [_leftHiddenViewController removeFromParentViewController];
     _leftHiddenViewController = hiddenViewController;
     
     if (hiddenViewController)
     {
-        [self addChildViewController:hiddenViewController];
         
         if (self.leftHiddenViewControllerRevealed)
         {
+            [self addChildViewController:hiddenViewController];
             hiddenViewController.view.frame = frame;
             hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
             [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
+            [hiddenViewController didMoveToParentViewController:self];
         }
     }
 }
@@ -225,20 +265,32 @@
     
     CGRect frame = _rightHiddenViewController.view.frame;
     [_rightHiddenViewController.view removeFromSuperview];
+    [_rightHiddenViewController willMoveToParentViewController:nil];
     [_rightHiddenViewController removeFromParentViewController];
     _rightHiddenViewController = hiddenViewController;
     
     if (hiddenViewController)
-    {
-        [self addChildViewController:hiddenViewController];
-        
+    {        
         if (self.rightHiddenViewControllerRevealed)
         {
+            [self addChildViewController:hiddenViewController];
             hiddenViewController.view.frame = frame;
             hiddenViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
             [self.view insertSubview:hiddenViewController.view belowSubview:self.mainVCWrapperView];
+            [hiddenViewController didMoveToParentViewController:self];
         }
     }
+}
+
+- (void)setAllowMainVCInteractionWhileRevealed:(BOOL)allowMainVCInteractionWhileRevealed
+{
+    _allowMainVCInteractionWhileRevealed = allowMainVCInteractionWhileRevealed;
+    if (self.leftHiddenViewControllerRevealed || self.rightHiddenViewControllerRevealed)
+    {
+        self.mainViewController.view.userInteractionEnabled = allowMainVCInteractionWhileRevealed;
+        self.hideTapGestureRecognizer.enabled = !allowMainVCInteractionWhileRevealed;
+    }
+    
 }
 
 #pragma mark - Show/Peek/Hide Hidden VC methods
@@ -276,7 +328,6 @@
     [self showHiddenViewController:RZRevealViewControllerPositionRight offset:offset duration:kRZRevealDefaultAnimationTime animated:animated completionBlock:block];
 }
 
-
 - (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block
 {
     UIViewController* hiddenVC = nil;
@@ -292,9 +343,14 @@
     
     if (hiddenVC)
     {
-        hiddenVC.view.frame = self.view.bounds;
-        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+        if (hiddenVC.parentViewController == nil)
+        {
+            [self addChildViewController:hiddenVC];
+            hiddenVC.view.frame = self.view.bounds;
+            hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+            [hiddenVC didMoveToParentViewController:self];
+        }
         
         if (animated)
         {
@@ -395,9 +451,14 @@
 
     if (hiddenVC)
     {
-        hiddenVC.view.frame = self.view.bounds;
-        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+        if (hiddenVC.parentViewController == nil)
+        {
+            [self addChildViewController:hiddenVC];
+            hiddenVC.view.frame = self.view.bounds;
+            hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+            [hiddenVC didMoveToParentViewController:self];
+        }
         
         if (animated)
         {
@@ -494,7 +555,11 @@
                              self.mainVCWrapperView.transform = CGAffineTransformIdentity;
                          }
                          completion:^(BOOL finished) {
+                             
+                             [vcToHide willMoveToParentViewController:nil];
+                             [vcToHide removeFromParentViewController];
                              [vcToHide.view removeFromSuperview];
+                             
                              [self setViewControllerRevealed:NO forPosition:position];
                              
                              [self.mainViewController revealController:self didHideHiddenController:vcToHide position:position];
@@ -536,7 +601,9 @@
     }
 }
 
-- (void) setViewControllerRevealed:(BOOL)revealed forPosition:(RZRevealViewControllerPosition)position {
+- (void) setViewControllerRevealed:(BOOL)revealed forPosition:(RZRevealViewControllerPosition)position
+{
+    
     if (position == RZRevealViewControllerPositionLeft)
     {
         self.leftHiddenViewControllerRevealed = revealed;
@@ -545,10 +612,24 @@
     {
         self.rightHiddenViewControllerRevealed = revealed;
     }
+    
     else if (position == RZRevealViewControllerPositionBoth)
     {
         self.rightHiddenViewControllerRevealed = revealed;
         self.leftHiddenViewControllerRevealed = revealed;
+    }
+    
+    if (revealed) 
+    {
+        // Must disable interaction on VC itself, NOT wrapper
+        // Disabling on wrapper allows "touch through" to hidden VC
+        self.mainViewController.view.userInteractionEnabled = self.allowMainVCInteractionWhileRevealed;
+        self.hideTapGestureRecognizer.enabled = !self.allowMainVCInteractionWhileRevealed;
+    }
+    else
+    {
+        self.mainViewController.view.userInteractionEnabled = YES;
+        self.hideTapGestureRecognizer.enabled = NO;
     }
 }
 
@@ -603,7 +684,8 @@
                 {
                     [self peekRightHiddenViewControllerWithOffset:0.0 animated:NO];
                 }
-            } else if (locationOffset > 0.0)
+            }
+            else if (locationOffset > 0.0)
             {
                 if (!self.leftHiddenViewController)
                 {
@@ -612,12 +694,11 @@
                 else if (!self.leftHiddenViewControllerRevealed)
                 {
                     [self peekLeftHiddenViewControllerWithOffset:0.0 animated:NO];
-                    return;
                 }
             }
             
             
-            if (locationOffset > currentPeekHiddenOffset)
+            if (self.isPeekEnabled && locationOffset > currentPeekHiddenOffset)
             {
                 if (initialOffset > currentPeekHiddenOffset)
                 {
@@ -635,6 +716,7 @@
             self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(locationOffset, 0);
             
             break;
+            
         case UIGestureRecognizerStateEnded:
         case UIGestureRecognizerStateCancelled:
             currentLocation = [panGR locationInView:self.view];
@@ -645,9 +727,12 @@
             RZRevealViewControllerPosition position = locationOffset > 0 ? RZRevealViewControllerPositionLeft : RZRevealViewControllerPositionRight;
             CGFloat absLocOffset = fabs(locationOffset);
             
-            if (absLocOffset > fabs(initialOffset))
-            {                
-                if (absLocOffset > currentShowHiddenOffset)
+            // Make sure we have a valid offset for which view controllers are present
+            BOOL validOffset = (locationOffset > 0 && self.leftHiddenViewController != nil) || (locationOffset < 0 && self.rightHiddenViewController != nil);
+            
+            if (validOffset && absLocOffset > fabs(initialOffset))
+            {
+                if (absLocOffset > (self.peekEnabled ? currentShowHiddenOffset : self.revealOffset))
                 {
                     CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
@@ -665,7 +750,7 @@
                     
                     [self showHiddenViewController:position offset:currentShowHiddenOffset duration:duration animated:YES completionBlock:nil];
                 }
-                else if (absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
+                else if (self.isPeekEnabled && absLocOffset > (currentQuickPeekHiddenOffset + ((currentPeekHiddenOffset - currentQuickPeekHiddenOffset) / 3.0)))
                 {
                     CGFloat newDistance = fabs(currentPeekHiddenOffset - absLocOffset);
                     
@@ -683,7 +768,7 @@
                     
                     [self peekHiddenViewController:position offset:currentPeekHiddenOffset duration:duration animated:YES];
                 }
-                else if (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0)
+                else if (self.isPeekEnabled && (absLocOffset > (currentQuickPeekHiddenOffset / 3.0) || velocity > 1000.0))
                 {
                     CGFloat newDistance = fabs(currentQuickPeekHiddenOffset - absLocOffset);
                     
@@ -745,15 +830,32 @@
     }
 }
 
+- (void)hideTapTriggered:(UITapGestureRecognizer *)tapGR
+{
+    if (self.leftHiddenViewControllerRevealed)
+    {
+        [self hideLeftHiddenViewControllerAnimated:YES];
+    }
+    else if (self.rightHiddenViewControllerRevealed)
+    {
+        [self hideRightHiddenViewControllerAnimated:YES];
+    }
+}
+
 #pragma mark - UIGestureRecgonzierDelegate
 
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
     if (gestureRecognizer == self.revealPanGestureRecognizer)
     {
-        CGPoint location = [gestureRecognizer locationInView:self.view];
         
-        if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold) || (self.leftHiddenViewControllerRevealed && location.x < self.openRevealGestureThreashold))
+        BOOL delegateAllowsReveal = YES;
+        if ([self.delegate respondsToSelector:@selector(revealControllerShouldBeginReveal:)])
+        {
+            delegateAllowsReveal = [self.delegate revealControllerShouldBeginReveal:self];
+        }
+        //if (!self.revealEnabled || (!self.leftHiddenViewControllerRevealed && location.x > self.revealGestureThreshold) || (self.leftHiddenViewControllerRevealed && location.x < self.openRevealGestureThreashold))
+        if (!delegateAllowsReveal || !self.revealEnabled)
         {
             return NO;
         }
