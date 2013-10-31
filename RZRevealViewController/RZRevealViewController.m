@@ -16,6 +16,8 @@
 
 #define kRZRevealDefaultDurationScaleFactor     2.5f
 
+#define kRZRevealSideThreshold                  55.0f
+
 // Private pan gesture subclass to prevent overriding delegate externally
 
 @interface RZRevealPanGestureRecognizer : UIPanGestureRecognizer
@@ -848,6 +850,11 @@
 {
     if (gestureRecognizer == self.revealPanGestureRecognizer)
     {
+        CGPoint location = [gestureRecognizer locationInView:self.view];
+        if(location.x > kRZRevealSideThreshold && location.x < self.view.bounds.size.width - kRZRevealSideThreshold)
+        {
+            return NO;
+        }
         
         BOOL delegateAllowsReveal = YES;
         if ([self.delegate respondsToSelector:@selector(revealControllerShouldBeginReveal:)])
