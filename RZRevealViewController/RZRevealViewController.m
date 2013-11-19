@@ -116,6 +116,7 @@
     self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.25;
     self.peekHiddenOffset = self.view.bounds.size.width * 0.5;
     self.showHiddenOffset = self.view.bounds.size.width  * 0.85;
+    self.maxDragDistance = self.view.bounds.size.width;
 }
 
 #pragma mark - View lifecycle
@@ -655,7 +656,12 @@
                     locationOffset = currentPeekHiddenOffset + ((locationOffset - currentPeekHiddenOffset) / 2.0);
                 }
             }
-            
+
+            if(fabs(locationOffset) > self.maxDragDistance)
+            {
+                locationOffset = (locationOffset < 0.0f) ? ((-1) * self.maxDragDistance) : self.maxDragDistance;
+            }
+
             self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(locationOffset, 0);
             
             break;

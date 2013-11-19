@@ -42,6 +42,7 @@ RZRevealViewControllerPosition;
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
 @property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width * 0.85
+@property (assign, nonatomic) CGFloat maxDragDistance;                          // Defaults to self.view.bounds.size.width
 
 @property (weak, nonatomic) id<RZRevealViewControllerDelegate> delegate;
 
