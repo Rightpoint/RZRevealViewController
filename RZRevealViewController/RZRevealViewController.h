@@ -50,6 +50,11 @@ RZRevealViewControllerPosition;
         leftHiddenViewController:(UIViewController*)leftVC
         rightHiddenViewController:(UIViewController*)rightVC;
 
+- (id)initWithMainViewController:(UIViewController*)mainVC
+        leftHiddenViewController:(UIViewController*)leftVC
+       rightHiddenViewController:(UIViewController*)rightVC
+                 usesEdgeGesture:(BOOL)usesEdgeGesture;
+
 - (IBAction)showLeftHiddenViewControllerAnimated:(BOOL)animated;
 - (void)showLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 - (IBAction)peekLeftHiddenViewControllerAnimated:(BOOL)animated;

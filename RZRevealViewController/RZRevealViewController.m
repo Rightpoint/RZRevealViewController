@@ -36,6 +36,31 @@
 
 @end
 
+@interface RZRevealScreenEdgePanGestureRecognizer : UIScreenEdgePanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate;
+
+@end
+
+@implementation RZRevealScreenEdgePanGestureRecognizer
+
+- (id)initWithTarget:(id)target action:(SEL)action delegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    self = [super initWithTarget:target action:action];
+    if (self)
+    {
+        [super setDelegate:delegate];
+    }
+    return self;
+}
+
+- (void)setDelegate:(id<UIGestureRecognizerDelegate>)delegate
+{
+    @throw [NSException exceptionWithName:@"RZRevealViewControllerException" reason:@"The delegate of RZRevealViewController's pan gesture recognizer may not be changed" userInfo:nil];
+}
+
+@end
+
 // -----------
 
 @interface RZRevealViewController ()
@@ -45,7 +70,12 @@
 @property (strong, readwrite, nonatomic) UIPanGestureRecognizer *revealPanGestureRecognizer;
 @property (strong, nonatomic) UITapGestureRecognizer *hideTapGestureRecognizer;
 
+@property (nonatomic, strong) UIScreenEdgePanGestureRecognizer *revealEdgePanRecognizer;
+@property (nonatomic, assign) BOOL usesEdgeGestureRecognizer;
+@property (nonatomic, assign) UIRectEdge dragEdges;
+
 - (void)setupRevealViewController;
+- (void)initializeGestureRecognizers;
 
 - (void)showHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
 - (void)peekHiddenViewController:(RZRevealViewControllerPosition)position offset:(CGFloat)offset duration:(CGFloat)duration animated:(BOOL)animated;
@@ -62,11 +92,25 @@
         leftHiddenViewController:(UIViewController*)leftVC
        rightHiddenViewController:(UIViewController*)rightVC
 {
-    self = [self init];
-    if (self) {
-                
-        [self setupRevealViewController];
+    return [self initWithMainViewController:mainVC
+                   leftHiddenViewController:leftVC
+                  rightHiddenViewController:rightVC
+                            usesEdgeGesture:NO];
+}
 
+- (id)initWithMainViewController:(UIViewController*)mainVC
+        leftHiddenViewController:(UIViewController*)leftVC
+       rightHiddenViewController:(UIViewController*)rightVC
+                 usesEdgeGesture:(BOOL)usesEdgeGesture
+{
+    self = [super init];
+    if (self) {
+        
+        self.usesEdgeGestureRecognizer = usesEdgeGesture;
+        self.dragEdges = ((leftVC != nil) ? UIRectEdgeLeft : 0) | ((rightVC != nil) ? UIRectEdgeRight : 0);
+        
+        [self setupRevealViewController];
+        
         self.mainViewController = mainVC;
         self.leftHiddenViewController = leftVC;
         self.rightHiddenViewController = rightVC;
@@ -105,13 +149,9 @@
 {
     self.revealEnabled = YES;
     self.peekEnabled = NO;
-    
-    if (nil == self.revealPanGestureRecognizer)
-    {
-        self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
-        [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
-    }
-    
+
+    [self initializeGestureRecognizers];
+
     self.revealOffset = 0;
     self.quickPeekHiddenOffset = self.view.bounds.size.width * 0.25;
     self.peekHiddenOffset = self.view.bounds.size.width * 0.5;
@@ -119,17 +159,34 @@
     self.maxDragDistance = self.view.bounds.size.width;
 }
 
-#pragma mark - View lifecycle
-- (void)viewDidLoad
+- (void)initializeGestureRecognizers
 {
-    [super viewDidLoad];
-    
+    if(self.usesEdgeGestureRecognizer && self.revealEdgePanRecognizer == nil)
+    {
+        self.revealEdgePanRecognizer = [[RZRevealScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
+        self.revealEdgePanRecognizer.edges = self.dragEdges;
+        [self.view addGestureRecognizer:self.revealEdgePanRecognizer];
+    }
+
     if (nil == self.revealPanGestureRecognizer)
     {
         self.revealPanGestureRecognizer = [[RZRevealPanGestureRecognizer alloc] initWithTarget:self action:@selector(revealPanTriggered:) delegate:self];
         [self.view addGestureRecognizer:self.revealPanGestureRecognizer];
     }
-        
+
+    if(self.usesEdgeGestureRecognizer)
+    {
+        self.revealPanGestureRecognizer.enabled = NO;
+    }
+}
+
+#pragma mark - View lifecycle
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    [self initializeGestureRecognizers];
+    
     if (self.mainViewController)
     {
         self.mainViewController.view.frame = self.view.bounds;
@@ -283,6 +340,7 @@
     {
         self.mainViewController.view.userInteractionEnabled = allowMainVCInteractionWhileRevealed;
         self.hideTapGestureRecognizer.enabled = !allowMainVCInteractionWhileRevealed;
+        self.revealPanGestureRecognizer.enabled = YES;
     }
     
 }
@@ -569,11 +627,16 @@
         // Disabling on wrapper allows "touch through" to hidden VC
         self.mainViewController.view.userInteractionEnabled = self.allowMainVCInteractionWhileRevealed;
         self.hideTapGestureRecognizer.enabled = !self.allowMainVCInteractionWhileRevealed;
+        self.revealPanGestureRecognizer.enabled = YES;
     }
     else
     {
         self.mainViewController.view.userInteractionEnabled = YES;
         self.hideTapGestureRecognizer.enabled = NO;
+        if(self.usesEdgeGestureRecognizer)
+        {
+            self.revealPanGestureRecognizer.enabled = NO;
+        }
     }
 }
 
