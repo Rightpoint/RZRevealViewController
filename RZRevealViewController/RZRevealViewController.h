@@ -71,6 +71,9 @@ typedef void (^RZRevealViewControllerCompletionBlock)(BOOL succeeded);
 - (IBAction)hideRightHiddenViewControllerAnimated:(BOOL)animated;
 - (void)hideRightHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
 
+- (void)bounceLeftHiddenViewController;
+- (void)bounceRightHiddenViewController;
+
 @end
 
 @protocol RZRevealViewControllerDelegate <NSObject>
