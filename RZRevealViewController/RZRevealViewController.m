@@ -853,7 +853,7 @@
 
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
-    if (gestureRecognizer == self.revealPanGestureRecognizer)
+    if (gestureRecognizer == self.revealPanGestureRecognizer || gestureRecognizer == self.revealEdgePanRecognizer)
     {
         
         BOOL delegateAllowsReveal = YES;
