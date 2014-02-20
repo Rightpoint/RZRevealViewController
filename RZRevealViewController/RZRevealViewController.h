@@ -12,9 +12,13 @@ typedef enum
 {
     RZRevealViewControllerPositionLeft,
     RZRevealViewControllerPositionRight,
-    RZRevealViewControllerPositionNone
+    RZRevealViewControllerPositionNone,
+    RZRevealViewControllerPositionBoth
 }
 RZRevealViewControllerPosition;
+
+typedef void (^RZRevealViewControllerCompletionBlock)(BOOL succeeded);
+
 
 @protocol RZRevealViewControllerDelegate;
 
@@ -42,7 +46,9 @@ RZRevealViewControllerPosition;
 @property (assign, nonatomic) CGFloat quickPeekHiddenOffset;                    // Defaults to self.view.bounds.size.width / 4.0
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
 @property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width * 0.85
+@property (assign, nonatomic) CGFloat revealGestureThreshold;                   // Defaults to CGFLOAT_MAX
 @property (assign, nonatomic) CGFloat maxDragDistance;                          // Defaults to self.view.bounds.size.width
+@property (assign, nonatomic) CGFloat openRevealGestureThreashold;
 
 @property (weak, nonatomic) id<RZRevealViewControllerDelegate> delegate;
 
@@ -56,16 +62,23 @@ RZRevealViewControllerPosition;
                  usesEdgeGesture:(BOOL)usesEdgeGesture;
 
 - (IBAction)showLeftHiddenViewControllerAnimated:(BOOL)animated;
+- (void)showLeftHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
 - (void)showLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 - (IBAction)peekLeftHiddenViewControllerAnimated:(BOOL)animated;
 - (void)peekLeftHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 - (IBAction)hideLeftHiddenViewControllerAnimated:(BOOL)animated;
+- (void)hideLeftHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
 
 - (IBAction)showRightHiddenViewControllerAnimated:(BOOL)animated;
+- (void)showRightHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
 - (void)showRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 - (IBAction)peekRightHiddenViewControllerAnimated:(BOOL)animated;
 - (void)peekRightHiddenViewControllerWithOffset:(CGFloat)offset animated:(BOOL)animated;
 - (IBAction)hideRightHiddenViewControllerAnimated:(BOOL)animated;
+- (void)hideRightHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
+
+- (void)bounceLeftHiddenViewController;
+- (void)bounceRightHiddenViewController;
 
 @end
 
