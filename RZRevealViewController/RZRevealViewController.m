@@ -16,6 +16,8 @@
 
 #define kRZRevealDefaultDurationScaleFactor     2.5f
 
+#define kRZRevealDefaultBounceDistance          70.0f
+
 // Private pan gesture subclass to prevent overriding delegate externally
 
 @interface RZRevealPanGestureRecognizer : UIPanGestureRecognizer
@@ -585,6 +587,8 @@
         }
         
         self.mainVCWrapperView.transform = CGAffineTransformIdentity;
+        [vcToHide willMoveToParentViewController:nil];
+        [vcToHide removeFromParentViewController];
         [vcToHide.view removeFromSuperview];
         [self setViewControllerRevealed:NO forPosition:position];
         
@@ -841,6 +845,50 @@
         [self hideRightHiddenViewControllerAnimated:YES];
     }
 }
+
+- (void)bounceLeftHiddenViewController
+{
+    [self bounceHiddenViewControllerAtPosition:RZRevealViewControllerPositionLeft];
+}
+
+- (void)bounceRightHiddenViewController
+{
+    [self bounceHiddenViewControllerAtPosition:RZRevealViewControllerPositionRight];
+}
+
+- (void)bounceHiddenViewControllerAtPosition:(RZRevealViewControllerPosition)position
+{
+    UIViewController* hiddenVC = (position == RZRevealViewControllerPositionLeft) ? self.leftHiddenViewController : self.rightHiddenViewController;
+    if (hiddenVC.parentViewController == nil)
+    {
+        [self addChildViewController:hiddenVC];
+        hiddenVC.view.frame = self.view.bounds;
+        hiddenVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [self.view insertSubview:hiddenVC.view belowSubview:self.mainVCWrapperView];
+        [hiddenVC didMoveToParentViewController:self];
+    }
+    
+    
+    CGFloat bounceDistance = (position == RZRevealViewControllerPositionLeft) ? kRZRevealDefaultBounceDistance : -kRZRevealDefaultBounceDistance;
+    
+    [UIView animateWithDuration:0.2f animations:^{
+        self.mainVCWrapperView.transform = CGAffineTransformMakeTranslation(bounceDistance, 0.0f);
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.4f delay:0.0f usingSpringWithDamping:0.5f initialSpringVelocity:9.0f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            self.mainVCWrapperView.transform = CGAffineTransformIdentity;
+        } completion:^(BOOL finished) {
+            if (position == RZRevealViewControllerPositionLeft)
+            {
+                [self hideLeftHiddenViewControllerAnimated:NO];
+            }
+            else
+            {
+                [self hideRightHiddenViewControllerAnimated:NO];
+            }
+        }];
+    }];
+}
+
 
 #pragma mark - UIGestureRecgonzierDelegate
 
