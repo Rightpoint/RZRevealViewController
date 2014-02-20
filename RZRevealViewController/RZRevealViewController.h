@@ -47,6 +47,7 @@ typedef void (^RZRevealViewControllerCompletionBlock)(BOOL succeeded);
 @property (assign, nonatomic) CGFloat peekHiddenOffset;                         // Defaults to self.view.bounds.size.width / 2.0
 @property (assign, nonatomic) CGFloat showHiddenOffset;                         // Defaults to self.view.bounds.size.width * 0.85
 @property (assign, nonatomic) CGFloat revealGestureThreshold;                   // Defaults to CGFLOAT_MAX
+@property (assign, nonatomic) CGFloat maxDragDistance;                          // Defaults to self.view.bounds.size.width
 @property (assign, nonatomic) CGFloat openRevealGestureThreashold;
 
 @property (weak, nonatomic) id<RZRevealViewControllerDelegate> delegate;
@@ -54,6 +55,11 @@ typedef void (^RZRevealViewControllerCompletionBlock)(BOOL succeeded);
 - (id)initWithMainViewController:(UIViewController*)mainVC
         leftHiddenViewController:(UIViewController*)leftVC
         rightHiddenViewController:(UIViewController*)rightVC;
+
+- (id)initWithMainViewController:(UIViewController*)mainVC
+        leftHiddenViewController:(UIViewController*)leftVC
+       rightHiddenViewController:(UIViewController*)rightVC
+                 usesEdgeGesture:(BOOL)usesEdgeGesture;
 
 - (IBAction)showLeftHiddenViewControllerAnimated:(BOOL)animated;
 - (void)showLeftHiddenViewControllerAnimated:(BOOL)animated completionBlock:(RZRevealViewControllerCompletionBlock)block;
